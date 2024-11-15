@@ -13,6 +13,7 @@ pub async fn index() -> impl IntoResponse {
     HtmlTemplate(template)
 }
 
+/// some default pages
 pub async fn first() -> impl IntoResponse {
     info!("GET `/first`");
     let template = templates::PageTemplate {
