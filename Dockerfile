@@ -6,7 +6,7 @@
 
 ############################CACHE##############################################
 
-FROM docker.io/rust:1.68.2-slim-bullseye AS builder
+FROM docker.io/rust:slim AS builder
 
 # it is common to name cached image `build` but this messes up
 # rocket's fileserver which is configured in compile-time,
@@ -24,14 +24,14 @@ RUN --mount=type=cache,target=/app/target \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/usr/local/rustup \
     set -eux; \
-	rustup install stable; \
+    rustup install stable; \
     cargo build --release; \
     # in case you don't do that in cargo config, you can strip debug symbols here
     objcopy --compress-debug-sections target/release/axum-template ./axum-template
 
 ################################################################################
 
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/debian:stable-slim
 
 WORKDIR /app
 
