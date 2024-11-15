@@ -1,59 +1,49 @@
-use axum::{
-    body::Bytes,
-    error_handling::HandleErrorLayer,
-    extract::{DefaultBodyLimit, Path, State},
-    handler::Handler,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{delete, get},
-    Router,
-};
-use axum::{
-    response::Json,
-    routing::{get, Router},
-};
-use std::sync::{Arc, RwLock};
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio::time::{sleep, Duration};
-use tower::{BoxError, ServiceBuilder};
-use tower_http::{
-    compression::CompressionLayer, limit::RequestBodyLimitLayer, trace::TraceLayer,
-    validate_request::ValidateRequestHeaderLayer,
-};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+//!
+//! ## Overview
+//! Template to have something to get-go in some situations
+//!
+//! This template provides:
+//! - Axum server
+//! - Templates
+//! - Containerization
+//!
 
-mod data;
+use axum::{routing::get, Router};
+use std::net::SocketAddr;
+use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use data::{data_updater, handlers::get_data, SharedState, STATE};
+mod handlers;
 
 #[tokio::main]
 async fn main() {
-    let (tx, rx) = channel(10);
+    tracing_init();
 
-    // Spawn a separate task to update data and send it over the channel
-    tokio::spawn(data_updater(tx));
-
+    // Static asset service
+    let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("./"));
     let app = Router::new()
-        .route("/:key", get(get_data(rx)).layer(CompressionLayer::new()))
-        .layer((
-            DefaultBodyLimit::disable(),
-            RequestBodyLimitLayer::new(1024 * 1_000 /* ~1mb */),
-        ))
-        .with_state(Arc::clone(&STATE));
+        .route("/", get(handlers::index))
+        // Some pages to route from
+        .route("/first", get(handlers::first))
+        .route("/second", get(handlers::second))
+        .route("/third", get(handlers::third))
+        // Have static assets be also served
+        .nest_service("/static", serve_dir.clone())
+        .fallback(handlers::handle_404);
 
-    // Start the server
-    let addr = "127.0.0.1:3000".parse().unwrap();
+    let addr = SocketAddr::from(([127, 0, 0, 1], 7777));
+    tracing::debug!("listening on {}", addr);
+    let log_layer = TraceLayer::new_for_http();
     axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+        .serve(app.layer(log_layer).into_make_service())
         .await
         .unwrap();
+}
 
-    println!("Hello, world!");
+fn tracing_init() {
+    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+    let fallback_log_level = format!("{}=debug", env!("CARGO_PKG_NAME"));
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| fallback_log_level.into()))
+        .with(fmt::layer())
+        .init();
 }
