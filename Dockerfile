@@ -34,6 +34,7 @@ FROM docker.io/debian:bullseye-slim
 
 WORKDIR /app
 
-# copy serer files
+# copy server files
+COPY --from=builder /app/static ./static
 COPY --from=builder /app/axum-template ./axum-template
 CMD ./axum-template
