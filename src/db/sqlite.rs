@@ -13,6 +13,7 @@ pub static DB: LazyLock<Pool> = LazyLock::new(|| {
         .expect("failed to initialize pool")
 });
 
+/// Init DB: create posts table
 pub async fn init() -> Result<()> {
     let conn = DB.get().await?;
     if let Ok(conn) = conn.try_lock() {

@@ -6,9 +6,9 @@ mod sqlite;
 mod surreal;
 
 #[cfg(feature = "sqlite")]
-pub(crate) use sqlite::{add_post, delete_post, get_all_posts, update_post, DB};
+pub(crate) use sqlite::{add_post, delete_post, get_all_posts, init, update_post, DB};
 #[cfg(feature = "surreal")]
-pub use surreal::{};
+pub(crate) use surreal::{add_post, delete_post, get_all_posts, init, update_post, DB};
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub(crate) struct NewPost {
