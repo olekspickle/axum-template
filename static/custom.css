@@ -1,17 +1,17 @@
 :root {
---white: #faf5f6;
---transwhite: rgba(250, 245, 246, .7);
---moretranswhite: rgba(239, 239, 239, .1);
---black: #252525;
---transblack: rgba(37, 37, 37, .7);
---moretransblack: rgba(37, 37, 37, .1);
---gray: #6b6b6b;
---highlight: #e5ffc3;
---red: #e4002b;
---green: #24d05a;
---pink: #eb4888;
---blue: #10a2f5;
---yellow: #e9bc3f;
+    --white: #faf5f6;
+    --transwhite: rgba(250, 245, 246, .7);
+    --moretranswhite: rgba(239, 239, 239, .1);
+    --black: #252525;
+    --transblack: rgba(37, 37, 37, .7);
+    --moretransblack: rgba(37, 37, 37, .1);
+    --gray: #6b6b6b;
+    --highlight: #e5ffc3;
+    --red: #e4002b;
+    --green: #24d05a;
+    --pink: #eb4888;
+    --blue: #10a2f5;
+    --yellow: #e9bc3f;
 }
 
 body {
@@ -29,6 +29,7 @@ main {
     right: 0;
     bottom: 0;
     left: 0;
+    min-height: 90vh;
 }
 
 canvas {
