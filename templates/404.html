@@ -1,9 +1,7 @@
 {% extends "main.html" %}
 
 {% block content %}
-<h1>404</h1>
-<p>{{ uri }}</p>
-<img style="border-radius: 15px"
-  src="https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fmattcromwell.com%2Fwp-content%2Fuploads%2F2013%2F04%2Fone-does-not-404.jpg&f=1&nofb=1&ipt=329ef13751d537b209ecfe0b0dd35cd7096da184df53b160d2d6c015475ba0d0&ipo=images"
-  alt="One does not meme">
+<h1 title="404" class="oops">404</h1>
+<h2 title="{{ uri }}" class="oops oopsie">{{ uri }}</h2>
+
 {% endblock content %}

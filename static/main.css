@@ -91,6 +91,7 @@ footer {
     bottom: 0;
     left: 0;
     width: 100%;
+    text-align: center;
 }
 
 
@@ -102,7 +103,6 @@ footer a {
     display: block;
     margin: 0;
     padding: 1.25rem 0;
-    text-align: center;
 }
 
 .wrapper-toggle {

@@ -9,6 +9,7 @@
 //!
 
 use axum::{routing::get, Router};
+use itertools::Itertools;
 use std::net::SocketAddr;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
@@ -23,9 +24,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(handlers::index))
         // Some pages to route from
-        .route("/first", get(handlers::first))
-        .route("/second", get(handlers::second))
-        .route("/third", get(handlers::third))
+        .route("/main", get(handlers::main))
+        .route("/secondary", get(handlers::secondary))
         // Have static assets be also served
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::handle_404);
@@ -41,13 +41,19 @@ async fn main() {
 
 fn tracing_init() {
     use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+    const NOISY_CRATES: &[&str] = &["hyper", "tower_http"];
 
-    let fallback_log_level = match cfg!(debug_assertions) {
-        true => format!("{}=debug,tower=debug", env!("CARGO_PKG_NAME")),
-        _ => format!("{}=info,tower_http=info", env!("CARGO_PKG_NAME")),
+    let noisy = NOISY_CRATES
+        .into_iter()
+        .map(|s| format!("{s}=info"))
+        .join(",");
+    let fallback_log_level: EnvFilter = match cfg!(debug_assertions) {
+        true => format!("debug,{noisy}").into(),
+        _ => format!("info,{noisy}").into(),
     };
+
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| fallback_log_level.into()))
         .with(fmt::layer())
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| fallback_log_level))
         .init();
 }

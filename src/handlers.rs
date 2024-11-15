@@ -8,38 +8,31 @@ use tracing::{error, info};
 pub async fn index() -> impl IntoResponse {
     info!("GET `/`");
     let template = templates::MainTemplate {
-        title: "Axum server".to_string(),
+        title: "Home".to_string(),
     };
     HtmlTemplate(template)
 }
 
 /// some default pages
-pub async fn first() -> impl IntoResponse {
-    info!("GET `/first`");
+pub async fn main() -> impl IntoResponse {
+    info!("GET `main`");
     let template = templates::PageTemplate {
-        title: "First".to_owned(),
+        title: "Main".to_owned(),
     };
     HtmlTemplate(template)
 }
-pub async fn second() -> impl IntoResponse {
-    info!("GET `/second`");
+pub async fn secondary() -> impl IntoResponse {
+    info!("GET `secondary`");
     let template = templates::PageTemplate {
-        title: "Second".to_owned(),
-    };
-    HtmlTemplate(template)
-}
-pub async fn third() -> impl IntoResponse {
-    info!("GET `/third`");
-    let template = templates::PageTemplate {
-        title: "Third".to_owned(),
+        title: "Secondary page".to_owned(),
     };
     HtmlTemplate(template)
 }
 
 pub async fn handle_404(uri: Uri) -> impl IntoResponse {
-    error!("404 `/{uri}`");
+    error!("404 `{uri}`");
     let template = templates::NotFoundTemplate {
-        title: "Oops!".to_owned(),
+        title: "404".to_owned(),
         uri: uri.to_string(),
     };
     HtmlTemplate(template)
