@@ -8,21 +8,14 @@ SHELL := /bin/bash
 crate=axum-template
 
 docs:
-	cargo docs
+	cargo docs --open
 
 lint:
 	cargo clippy -- -D warnings
 	cargo fmt --all -- --check
+	cargo machete
 
-build:
-	cargo fetch
-	cargo build --target=x86_64-unknown-linux-musl
-
-build-release:
-	cargo fetch
-	cargo build --target=x86_64-unknown-linux-musl --release
-
-pack: build
+pack:
 	# TODO: query crate name with
 	# cargo pkgid | rev | cut -d'/' -f1 | rev | sed 's/#.*//'
 	docker build -t $(crate):local .
@@ -35,6 +28,12 @@ tag: pack
 	docker tag $(crate):local alekspickle/$(crate):v0.1.0
 
 log_level=RUST_LOG=info,axum_template=trace
+
+run:
+	$(log_level) cargo run
+
+run-surreal:
+	docker compose -f compose.yml up --build
 
 run-docker-restricted: pack
 	docker run -d \
