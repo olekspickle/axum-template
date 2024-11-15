@@ -1,10 +1,26 @@
+:root {
+--white: #faf5f6;
+--transwhite: rgba(250, 245, 246, .7);
+--moretranswhite: rgba(239, 239, 239, .1);
+--black: #252525;
+--transblack: rgba(37, 37, 37, .7);
+--moretransblack: rgba(37, 37, 37, .1);
+--gray: #6b6b6b;
+--highlight: #e5ffc3;
+--red: #e4002b;
+--green: #24d05a;
+--pink: #eb4888;
+--blue: #10a2f5;
+--yellow: #e9bc3f;
+}
+
 body {
     margin: 0;
     padding: 0;
+    font-family: iA Writer Mono,monospace
 }
 
 main {
-    color: #fff;
     content: '';
     display: block;
     z-index: -1;
@@ -12,7 +28,6 @@ main {
     top: 0;
     right: 0;
     bottom: 0;
-    background-image: linear-gradient(0deg, #2b596e 0px, #3d4da8 100%);
     left: 0;
 }
 
@@ -27,7 +42,7 @@ canvas {
     z-index: -2;
     position: absolute;
     width: 100%;
-    height: 100%;
+    height: 90vh;
     background-image: url("");
     background-repeat: no-repeat;
     background-size: cover;
@@ -40,67 +55,19 @@ to {
 }
 }
 
-/* main { */
-/*     display: flex; */
-/*     flex-direction: column; */
-/*     justify-content: center; */
-/*     align-items: center; */
-/*     /* height: 97vh; */ */
-/*     width: 100%; */
-/*     overflow: hidden; */
-/* } */
-/**/
-nav {
-    display: flex;
-    justify-content: center;
-    list-style: none;
-    padding: 1rem 0 0 0;
-}
-
-nav a {
-    margin: 0 1rem;
-}
-
-nav a:first-child {
-    margin-left: 0;
-}
-
-nav a:last-child {
-    margin-right: 0;
-}
-
 a {
-    padding: 10px 15px;
-    /* makes target area bigger */
-    color: #333;
-    /* rgba backup */
-    color: rgba(255, 255, 255, 0.8);
-    text-decoration: none;
-    font-weight: bold;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
-    -webkit-transition: all 0.3s ease-in-out;
-    -moz-transition: all 0.3s ease-in-out;
-    -o-transition: all 0.3s ease-in-out;
-    transition: all 0.3s ease-in-out;
+    color: var(--black);
+    text-decoration-thickness: .3ex;
+    text-underline-offset: .3ex;
 }
 
-a:hover,
-a:focus {
-    color: #fff;
-    background: #fff;
-    /* rgba backup */
-    background: rgba(255, 255, 255, 0.2);
-    -webkit-border-radius: 4px;
-    /* safari & chrome */
-    -moz-border-radius: 4px;
-    /* firefox */
-    border-radius: 4px;
-    /* futureproof */
+a:hover {
+    font-weight: bolder;
+    text-decoration: underline;
 }
 
 /* Style footer */
 footer {
-    color: white;
     /* background-color: lightseagreen; */
     position: absolute;
     bottom: 0;
@@ -121,7 +88,7 @@ footer a {
 }
 
 textarea::placeholder {
-  color: #000;
+    color: #000;
 }
 
 .wrapper-toggle {
