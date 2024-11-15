@@ -7,14 +7,16 @@
 //! - [x] Axum server(with middleware)
 //! - [x] Askama templates
 //! - [x] Containerization(with compose)
+//! - [ ] Greeter page with query param name
+//! - [ ] Sqlite backend
 //! - [ ] SurrealDB backend
 //!
 //! ## Afterthoughts and issues
 //! I found axum to be the most ergonomic web framework out there, and while there might be not
-//! enough examples at the moment, it it quite a breeze to use
+//! enough examples at the moment, it is quite a breeze to use
 //! - static files was sure one pain in the back to figure out
-//! - surrealdb sure adds complexity, if you want example of sqlite with connection pool example,
-//!     check out my other template: [actix-template](https://github.com/alekspickle/actix-template)
+//! - surrealdb sure adds complexity, I'm adding it ubder a feature because sqlite integration is
+//!     so much less crates to compile(190+ vs 500+)
 //!
 use std::net::SocketAddr;
 
@@ -36,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
     // Static asset service
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
     let router = Router::new()
-        .route("/", get(handlers::index))
-        .route("/hello/:id", get(handlers::home))
+        .route("/", get(handlers::home))
+        .route("/hello", get(handlers::hello))
         .route("/posts", get(handlers::posts))
         //.route("/add-post", get(handlers::add_posts))
         //.route("/delete-post", get(handlers::delete_post))

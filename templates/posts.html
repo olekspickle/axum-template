@@ -1,4 +1,4 @@
-{% extends "main.html" %}
+{% extends "home.html" %}
 
     {% block content %}
 <!-- Main Content -->
@@ -58,7 +58,7 @@ import { connect } from "https://deno.land/x/nats@v1.16.0/src/mod.ts";
 
 const servers = Deno.env.get("NATS_URL") || "nats://localhost:4222";
 const nc = await connect({
-    servers: servers.split(","),
+servers: servers.split(","),
 });
 
 const sub_cfg = {callback: |(err, msg)| => {

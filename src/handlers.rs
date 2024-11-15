@@ -1,33 +1,48 @@
-use crate::form_zip::ZIP;
 use askama::Template;
 use axum::{
+    extract::Query,
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Response},
 };
 use hyper::{header, HeaderMap};
-use tracing::{error, warn};
+use serde::Deserialize;
+use tracing::{error, trace, warn};
 
-use crate::form_zip;
+use crate::{db, form_zip, form_zip::ZIP};
 
-pub async fn index() -> impl IntoResponse {
-    let template = templates::MainTemplate {
-        title: "Home".to_string(),
+pub async fn home() -> impl IntoResponse {
+    let template = templates::Home {
+        title: "Home".to_owned(),
     };
     HtmlTemplate(template)
 }
 
-/// some default pages
-pub async fn main() -> impl IntoResponse {
-    let template = templates::PageTemplate {
-        title: "Main".to_owned(),
-    };
-    HtmlTemplate(template)
+#[derive(Deserialize)]
+pub struct Hello {
+    name: Option<String>,
 }
-pub async fn fetch() -> impl IntoResponse {
-    let template = templates::PageTemplate {
-        title: "Fetch".to_owned(),
+
+pub async fn hello(query: Query<Hello>) -> impl IntoResponse {
+    let name = query.name.clone().map_or("stranger".to_string(), |l| l);
+
+    let html = templates::Hello {
+        name,
+        title: "Hello".into(),
     };
-    HtmlTemplate(template)
+
+    HtmlTemplate(html)
+}
+
+pub async fn posts() -> impl IntoResponse {
+    let posts = db::get_all_posts().await.expect("getting all posts failed");
+    trace!("fetched posts: {}", posts.len());
+
+    let html = templates::Posts {
+        title: "Posts".into(),
+        posts,
+    };
+
+    HtmlTemplate(html)
 }
 
 pub async fn fetch_zip() -> impl IntoResponse {
@@ -61,15 +76,23 @@ pub mod templates {
     use super::*;
 
     #[derive(Template)]
-    #[template(path = "main.html")]
-    pub struct MainTemplate {
+    #[template(path = "home.html")]
+    pub struct Home {
         pub title: String,
     }
 
     #[derive(Template)]
-    #[template(path = "page.html")]
-    pub struct PageTemplate {
+    #[template(path = "hello.html")]
+    pub struct Hello {
         pub title: String,
+        pub name: String,
+    }
+
+    #[derive(Template)]
+    #[template(path = "posts.html")]
+    pub struct Posts {
+        pub title: String,
+        pub posts: Vec<db::Post>,
     }
 
     #[derive(Template)]
