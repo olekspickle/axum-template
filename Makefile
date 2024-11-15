@@ -5,11 +5,10 @@ SHELL := /bin/bash
 # Stop excecution on any error
 .SHELLFLAGS = -ec
 
+crate=axum-template
+
 docs:
 	cargo docs
-
-test:
-	echo $(PKG)
 
 lint:
 	cargo clippy -- -D warnings
@@ -24,16 +23,20 @@ build-release:
 	cargo build --target=x86_64-unknown-linux-musl --release
 
 pack: build
-	docker build -t axum-template:local .
+	# TODO: query crate name with
+	# cargo pkgid | rev | cut -d'/' -f1 | rev | sed 's/#.*//'
+	docker build -t $(crate):local .
 
 tag: pack
-	# todo: user can be sub-d with
+	# TODO: user can be sub-d with
 	# git config --get user.name | cut -d " " -f 1
 	# and version with
 	# cargo pkgid | grep -oP '#\K[^#]+$'
-	docker tag axum-template:local alekspickle/axum-template:v0.1.0
+	docker tag $(crate):local alekspickle/$(crate):v0.1.0
 
 run-docker-restricted: pack
-	docker run -d -p 7777:7777 \
-	--rm --name axum-template --hostname axum-template \
-	--cpus="0.25" --memory="0.5g" axum-template:local
+	docker run -d \
+		-p 7777:7777 \
+		--hostname $(crate) \
+		--cpus="0.25" --memory="0.5g" \
+		$(crate):local
