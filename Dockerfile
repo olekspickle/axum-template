@@ -26,6 +26,7 @@ RUN --mount=type=cache,target=/app/target \
     set -eux; \
 	rustup install stable; \
     cargo build --release; \
+    # in case you don't do that in cargo config, you can strip debug symbols here
     objcopy --compress-debug-sections target/release/axum-template ./axum-template
 
 ################################################################################

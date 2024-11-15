@@ -30,7 +30,7 @@ async fn main() {
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::handle_404);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 7777));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 7777));
     tracing::debug!("listening on {}", addr);
     let log_layer = TraceLayer::new_for_http();
     axum::Server::bind(&addr)
