@@ -30,37 +30,27 @@ main {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 97vh;
+    /* height: 97vh; */
     width: 100%;
     overflow: hidden;
 }
 
 nav {
     display: flex;
-    justify-content: space-evenly;
-    /* makes list horizontal */
-    float: left;
-    list-style-type: none;
-    /* separates 'buttons' */
-    margin: 0 0 0 30px;
-}
-
-nav {
-    display: flex;
+    justify-content: center;
     list-style: none;
-    padding: 0;
-    margin: 1rem;
+    padding: 1rem 0 0 0;
 }
 
-nav li {
+nav a {
     margin: 0 1rem;
 }
 
-nav li:first-child {
+nav a:first-child {
     margin-left: 0;
 }
 
-nav li:last-child {
+nav a:last-child {
     margin-right: 0;
 }
 
