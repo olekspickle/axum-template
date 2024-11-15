@@ -25,14 +25,14 @@ async fn main() -> anyhow::Result<()> {
     tracing_init();
 
     // Static asset service
-    let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("./"));
+    let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
     let router = Router::new()
         .route("/", get(handlers::index))
         .route("/main", get(handlers::main))
         .route("/fetch", get(handlers::fetch))
         .route("/fetch-zip", get(handlers::fetch_zip))
-        .fallback(handlers::handle_404)
         .nest_service("/static", serve_dir.clone())
+        .fallback(handlers::handle_404)
         .layer(from_fn(middleware::auth))
         .layer(from_fn(middleware::log))
         .layer(TraceLayer::new_for_http())
@@ -50,6 +50,9 @@ fn tracing_init() {
     use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
     const NAME: &str = env!("CARGO_PKG_NAME");
+
+    let event_format = fmt::format().with_line_number(true);
+    let sub_fmt = tracing_subscriber::fmt::layer().event_format(event_format);
     let fallback_log_level: EnvFilter = match cfg!(debug_assertions) {
         true => format!("info,{NAME}=debug").into(),
         _ => "info".into(),
@@ -57,7 +60,7 @@ fn tracing_init() {
     let log_level = EnvFilter::try_from_default_env().unwrap_or(fallback_log_level);
     info!(%log_level, "Using tracing");
     tracing_subscriber::registry()
-        .with(fmt::layer())
+        .with(sub_fmt)
         .with(log_level)
         .init();
 }

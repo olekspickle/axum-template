@@ -1,5 +1,6 @@
 //! # Middleware
-//! you can do whatever you want with incoming requests before they reach handles
+//!
+//! You can do whatever you want with incoming requests before they reach handles
 //!
 use axum::{
     body::Body,
@@ -13,7 +14,9 @@ use tracing::{info, trace, warn};
 pub(crate) async fn log(req: Request<Body>, next: Next) -> Result<Response<Body>, StatusCode> {
     let (parts, body) = req.into_parts();
 
-    info!("{}", parts.uri);
+    if !parts.uri.to_string().contains("static") {
+        info!("{}", parts.uri);
+    }
 
     let req = Request::from_parts(parts, body);
     Ok(next.run(req).await)
@@ -35,12 +38,12 @@ pub(crate) async fn auth(req: Request<Body>, next: Next) -> Result<Response<Body
 fn check_bearer(header_map: &HeaderMap) -> Result<(), StatusCode> {
     const TOKEN: &str = "super-secret";
 
-    let token = header_map.get("Authorization");
-    if let Some(token) = token {
+    if let Some(token) = header_map.get("Authorization") {
         if !token.is_empty() && token == TOKEN {
             trace!("Authorized!");
             return Ok(());
         }
     }
+
     Err(StatusCode::FORBIDDEN)
 }
