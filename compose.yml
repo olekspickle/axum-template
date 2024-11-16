@@ -1,0 +1,34 @@
+services:
+  actix-template:
+    hostname: server
+    entrypoint: /app/actix-template
+    build:
+      context: .
+    ports:
+      - "7777:7777"
+    links:
+      - surrealdb
+    depends_on:
+      - surrealdb
+    networks:
+      - spider-web
+    environment:
+      - RUST_LOG=info,actix_template=trace
+      - SURREALDB_URL=ws://surrealdb:8000  # SurrealDB WebSocket URL
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+  surrealdb:
+    hostname: surrealdb
+    image: surrealdb/surrealdb:latest
+    command: start --log debug --user root --pass root memory
+    networks:
+      - spider-web
+    ports:
+      - "8000:8000"  # SurrealDB HTTP/WebSocket interface port
+    environment:
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+networks:
+  spider-web:
+    external:
+      name: spider-web
