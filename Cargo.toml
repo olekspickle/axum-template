@@ -13,3 +13,11 @@ tokio = { version = "1.0", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["fs", "trace"]}
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Uncomment to have up to 3x less binary size: the template itself goes from 5.9M to 2.1M
+# [profile.release]
+# opt-level = "z"     # Optimize for size.
+# lto = true          # Enable Link Time Optimization
+# codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+# panic = "abort"     # Abort on panic
+# strip = true        # Automatically strip symbols from the binary.
