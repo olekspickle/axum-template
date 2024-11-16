@@ -16,8 +16,15 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["aes-crypto"] }
 
-# Without it will be around 11M
-# Uncomment to have up to 3x less binary size: the template itself goes from 5.9M to 2.1M
+# Optimizations
+
+# Optimized to compile times
+# [profile.dev]
+# debug = 0
+# [profile.release]
+# debug = 0
+
+# Optimized to minimum size bin target
 # https://doc.rust-lang.org/cargo/reference/profiles.html
 # if you want more optimization there is only no_std path and other hacks
 #[profile.release]
@@ -26,6 +33,12 @@ zip = { version = "2", default-features = false, features = ["aes-crypto"] }
 #panic = "abort"     # Abort on panic
 #strip = "symbols"   # (or true) Automatically strip symbols from the binary ().
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+
+# Optimized to runtime performance
+# [profile.release]
+# lto = true
+# codegen-units = 1
+# panic = "abort"
 
 # statically link C runtime on *-musl targets
 # https://github.com/rust-lang/rust/issues/59302
