@@ -2,8 +2,9 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 use deadpool_sqlite::{Config, Pool, Runtime};
-use serde::{Deserialize, Serialize};
 use serde_rusqlite::*;
+
+use super::{NewPost, Post};
 
 /// SQlite connection pool singleton
 pub static DB: LazyLock<Pool> = LazyLock::new(|| {
@@ -11,20 +12,6 @@ pub static DB: LazyLock<Pool> = LazyLock::new(|| {
     cfg.create_pool(Runtime::Tokio1)
         .expect("failed to initialize pool")
 });
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub(crate) struct NewPost {
-    user: String,
-    content: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub(crate) struct Post {
-    pub id: u32,
-    pub user: String,
-    pub created_at: String,
-    pub content: String,
-}
 
 pub async fn init() -> Result<()> {
     let conn = DB.get().await?;

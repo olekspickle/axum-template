@@ -9,7 +9,25 @@ use surrealdb::{
 use crate::handlers::{NewPost, Post};
 
 /// SurrealDB connection singleton
-static DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
+//static DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
+
+/// SQlite connection pool singleton
+pub static DB: LazyLock<Surreal<Client>> = LazyLock::new(|| {
+    tracing::debug!(endpoint=%SURREAL_URL.clone(), "trying to connect to DB");
+    let db = Surreal::init();
+    // Connect to the server
+    db.connect::<Ws>(SURREAL_URL.clone()).await?;
+
+    // Signin as a namespace, database, or root user
+    db.signin(Root {
+        username: &SURREAL_USER,
+        password: &SURREAL_PASS,
+    })
+    .await?;
+    db.use_ns("test").use_db("actix-template").await?;
+
+    db
+});
 
 /// Fetch SURREAL_URL var or substitute with local
 static SURREAL_URL: LazyLock<String> =
@@ -19,33 +37,7 @@ static SURREAL_USER: LazyLock<String> =
 static SURREAL_PASS: LazyLock<String> =
     LazyLock::new(|| env::var("SURREALDB_PASS").unwrap_or("root".into()));
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub(crate) struct NewPost {
-    user: String,
-    content: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub(crate) struct Post {
-    pub id: u32,
-    pub user: String,
-    pub created_at: String,
-    pub content: String,
-}
-
 pub async fn connect() -> anyhow::Result<()> {
-    tracing::debug!(endpoint=%SURREAL_URL.clone(), "trying to connect to DB");
-    // Connect to the server
-    DB.connect::<Ws>(SURREAL_URL.clone()).await?;
-
-    // Signin as a namespace, database, or root user
-    DB.signin(Root {
-        username: &SURREAL_USER,
-        password: &SURREAL_PASS,
-    })
-    .await?;
-    DB.use_ns("test").use_db("actix-template").await?;
-
     Ok(())
 }
 

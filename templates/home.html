@@ -19,11 +19,14 @@
 
     <body>
         {% include "nav.html" %}
-        <main class="pt-20 flex justify-center items-center">
+        <main class="pt-20">
+            <section class="flex justify-center">
             {% block content %}{% endblock content %}
-            <div id="particles-js"></div>
-            <script src="static/particles.js"></script>
-            <script src="static/particles-cfg.js"></script>
+            <div id="particles-js">
+                <script src="static/particles.js"></script>
+                <script src="static/particles-cfg.js"></script>
+            </div>
+            </section>
         </main>
 
         {% include "footer.html" %}

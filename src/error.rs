@@ -10,4 +10,10 @@ pub(crate) enum Error {
     CreateFile,
     #[error(transparent)]
     Zip(#[from] zip::result::ZipError),
+    #[cfg(feature = "sqlite")]
+    #[error(transparent)]
+    Sqlite(#[from] rusqlite::Error),
+    #[cfg(feature = "surreal")]
+    #[error(transparent)]
+    Surreal(#[from] surrealdb::error::Error),
 }

@@ -6,7 +6,7 @@ mod sqlite;
 mod surreal;
 
 #[cfg(feature = "sqlite")]
-pub use sqlite::{};
+pub(crate) use sqlite::{add_post, delete_post, get_all_posts, update_post, DB};
 #[cfg(feature = "surreal")]
 pub use surreal::{};
 
