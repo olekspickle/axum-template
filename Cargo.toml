@@ -25,3 +25,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 #panic = "abort"     # Abort on panic
 #strip = "symbols"   # (or true) Automatically strip symbols from the binary ().
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+
+# statically link C runtime on *-musl targets
+# https://github.com/rust-lang/rust/issues/59302
+# [target.x86_64-unknown-linux-musl]
+# rustflags = "-Ctarget-feature=-crt-static"
