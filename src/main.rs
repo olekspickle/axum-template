@@ -35,6 +35,8 @@ mod middleware;
 async fn main() -> anyhow::Result<()> {
     tracing_init();
 
+    db::init().await?;
+
     // Static asset service
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
     let router = Router::new()

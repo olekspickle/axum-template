@@ -1,3 +1,6 @@
+//! ## surrealDB api wrappers
+//!
+//! [Rust SDK reference](https://surrealdb.com/docs/sdk/rust)
 use std::{env, sync::LazyLock};
 
 use surrealdb::{
@@ -9,9 +12,9 @@ use surrealdb::{
 use crate::handlers::{NewPost, Post};
 
 /// SurrealDB connection singleton
-//static DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
-
-/// SQlite connection pool singleton
+/// TODO: should be possible to marry the deadpool with it in the future
+/// There IS a crate for it: https://docs.rs/deadpool-surrealdb/latest/deadpool_surrealdb/
+/// but one guy wrote it, the other has published, it is a mess
 pub static DB: LazyLock<Surreal<Client>> = LazyLock::new(|| {
     tracing::debug!(endpoint=%SURREAL_URL.clone(), "trying to connect to DB");
     let db = Surreal::init();
@@ -37,11 +40,7 @@ static SURREAL_USER: LazyLock<String> =
 static SURREAL_PASS: LazyLock<String> =
     LazyLock::new(|| env::var("SURREALDB_PASS").unwrap_or("root".into()));
 
-pub async fn connect() -> anyhow::Result<()> {
-    Ok(())
-}
-
-pub async fn init_db() -> anyhow::Result<()> {
+pub async fn init() -> anyhow::Result<()> {
     // some more fields to experiment with
     //DEFINE FIELD likes       ON TABLE posts TYPE int;       -- Number of likes
     //DEFINE FIELD comments    ON TABLE posts TYPE array;     -- Comments on the post
@@ -49,15 +48,23 @@ pub async fn init_db() -> anyhow::Result<()> {
     //DEFINE FIELD tags        ON TABLE posts TYPE array;     -- Tags or hashtags
     DB.query(
         "
-    DEFINE TABLE post SCHEMAFULL
-    PERMISSIONS FOR select, create, update, delete ON TABLE;
-    DEFINE FIELD user        ON TABLE posts TYPE string;    -- User handle
-    DEFINE FIELD content     ON TABLE posts TYPE string;    -- Post content
-    DEFINE FIELD created_at  ON TABLE posts TYPE datetime;  -- Timestamp of post creation
+        DEFINE TABLE IF NOT EXISTS posts SCHEMAFULL
+        // create/select only when authorized and update/delete only
+        // the records authenticated connection created
+        PERMISSIONS FOR
+        CREATE, SELECT WHERE $auth,
+        FOR UPDATE, DELETE WHERE created_by = $auth;
+        // username
+        DEFINE FIELD IF NOT EXISTS user        ON TABLE posts TYPE string;
+        // post content
+        DEFINE FIELD IF NOT EXISTS content     ON TABLE posts TYPE string;
+        // timestamp post was created at
+        DEFINE FIELD IF NOT EXISTS created_at  ON TABLE posts TYPE datetime;
+        // authenticated connection id
+        DEFINE FIELD IF NOT EXISTS created_by ON TABLE person VALUE $auth READONLY;
     ",
     )
-    .await
-    .expect("Surrealdb: failed to init DB");
+    .await?;
     Ok(())
 }
 
@@ -67,7 +74,6 @@ pub async fn get_all_posts() -> anyhow::Result<Vec<Post>> {
     Ok(posts)
 }
 
-//Select (Retrieve) all posts
 pub async fn add_post(post: NewPost) -> anyhow::Result<()> {
     // some more fields to experiment with
     // "likes": 0,
@@ -79,13 +85,3 @@ pub async fn add_post(post: NewPost) -> anyhow::Result<()> {
     tracing::debug!(id, "Inserted new post");
     Ok(())
 }
-//Select (Retrieve) all posts
-//SELECT * FROM posts;
-// Update a post (e.g., increase the number of likes)
-//UPDATE posts SET likes = likes + 1 WHERE id = "post_id123";
-// Delete a post
-//DELETE FROM posts WHERE id = "post_id123";
-// Select posts by a specific user
-// SELECT * FROM posts WHERE user_id = "user123";
-// Select posts with specific tags (hashtags)
-//SELECT * FROM posts WHERE "food" IN tags;
