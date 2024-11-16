@@ -1,14 +1,37 @@
 use axum::{
+    body::Bytes,
+    error_handling::HandleErrorLayer,
+    extract::{DefaultBodyLimit, Path, State},
+    handler::Handler,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{delete, get},
+    Router,
+};
+use axum::{
     response::Json,
     routing::{get, Router},
 };
 use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::time::{sleep, Duration};
+use tower::{BoxError, ServiceBuilder};
+use tower_http::{
+    compression::CompressionLayer, limit::RequestBodyLimitLayer, trace::TraceLayer,
+    validate_request::ValidateRequestHeaderLayer,
+};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod data;
 
-use data::{data_handler, data_updater, SharedState, STATE, handlers::get_data};
+use data::{data_updater, handlers::get_data, SharedState, STATE};
 
 #[tokio::main]
 async fn main() {
@@ -18,22 +41,12 @@ async fn main() {
     tokio::spawn(data_updater(tx));
 
     let app = Router::new()
-        .route(
-            "/:key",
-            // Add compression to `kv_get`
-            get(kv_get.layer(CompressionLayer::new()))
-                // But don't compress `kv_set`
-                .post_service(
-                    kv_set
-                        .layer((
-                            DefaultBodyLimit::disable(),
-                            RequestBodyLimitLayer::new(1024 * 5_000 /* ~5mb */),
-                        ))
-                        .with_state(Arc::clone(&shared_state)),
-                ),
-        )
-        .route("/", get(data_handler(STATE.clone(), rx)))
-        .with_state(STATE);
+        .route("/:key", get(get_data(rx)).layer(CompressionLayer::new()))
+        .layer((
+            DefaultBodyLimit::disable(),
+            RequestBodyLimitLayer::new(1024 * 1_000 /* ~1mb */),
+        ))
+        .with_state(Arc::clone(&STATE));
 
     // Start the server
     let addr = "127.0.0.1:3000".parse().unwrap();
