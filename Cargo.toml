@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Oleks Pickle <olekspickle@users.noreply.github.com>"]
 edition = "2021"
 licence = "MIT OR Apache-2.0"
-repository = "https://github.com/alekspickle/axum-template"
+repository = "https://github.com/olekspickle/axum-template"
 description = """
 Axum template with askama templates and a bit of htmx magic and simple surrealdb setup
 """
