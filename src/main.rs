@@ -51,7 +51,7 @@ fn tracing_init() {
         true => format!("debug,{noisy}").into(),
         _ => format!("info,{noisy}").into(),
     };
-
+    println!("{fallback_log_level}");
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| fallback_log_level))
