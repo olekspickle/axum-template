@@ -9,7 +9,7 @@
 FROM docker.io/rust:slim AS builder
 
 # it is common to name cached image `build` but this messes up
-# rocket's fileserver which is configured in compile-time,
+# some frameworks fileserver which is configured in compile-time,
 # so the build image and resulting image WORKDIR should match
 WORKDIR /app
 
