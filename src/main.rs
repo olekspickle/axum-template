@@ -41,7 +41,11 @@ async fn main() {
 
 fn tracing_init() {
     use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-    let fallback_log_level = format!("{}=debug,tower=debug", env!("CARGO_PKG_NAME"));
+
+    let fallback_log_level = match cfg!(debug_assertions) {
+        true => format!("{}=debug,tower=debug", env!("CARGO_PKG_NAME")),
+        _ => format!("{}=info,tower_http=info", env!("CARGO_PKG_NAME")),
+    };
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| fallback_log_level.into()))
         .with(fmt::layer())
