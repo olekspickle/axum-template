@@ -1,33 +1,19 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>{{ title }}</title>
-        <link rel="apple-touch-icon" sizes="180x180" href="static/favicon/apple-touch-icon.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="static/favicon/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="static/favicon/favicon-16x16.png">
-        <link rel="manifest" href="static/favicon/site.webmanifest">
-        <link rel="stylesheet" href="static/custom.css">
-        {% if title=="404" %}
-        <link rel="stylesheet" href="static/glitch.css">
-        {% endif %}
-        <!-- HTMX -->
-        <script src="https://unpkg.com/htmx.org@1.9.2"></script>
-        <!-- Tailwind -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-    </head>
+    {% include "head.html" %}
 
     <body>
         {% include "nav.html" %}
         <main class="pt-20">
             <section class="flex justify-center">
-            {% block content %}{% endblock content %}
-            <div id="particles-js">
-                <script src="static/particles.js"></script>
-                <script src="static/particles-cfg.js"></script>
-            </div>
+                {% block content %}{% endblock content %}
+                <div id="particles-js">
+                    <script src="static/particles.js"></script>
+                    <script src="static/particles-cfg.js"></script>
+                </div>
             </section>
         </main>
+        <script src="static/cassidoo.js"></script>
 
         {% include "footer.html" %}
     </body>

@@ -1,0 +1,49 @@
+<head>
+    <!-- Global Metadata -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <!-- Favicon/theme -->
+    <link rel="manifest" href="static/favicon/site.webmanifest">
+    <link rel="mask-icon" href="static/safari-pinned-tab.svg" color="#7134ff">
+    <link rel="icon" type="image/png" sizes="16x16" href="static/favicon/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="static/favicon/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="static/favicon/apple-touch-icon.png">
+    <meta name="msapplication-config" content="static/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+    <!-- Web Monetization -->
+    <!--<meta name="monetization" content="">-->
+    <!-- Primary Meta Tags -->
+    <title>{{ title }}</title>
+    <meta name="title" content="{{ title }}">
+    <meta name="description" content="Short description of the page">
+    <!-- Open Graph / Facebook -->
+    <!-- https://developers.facebook.com/docs/sharing/webmasters/ -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://alekspickle.github.com/axum-template">
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:description" content="Short description of the page">
+    <meta property="og:image" content="static/home.svg">
+    <!-- Twitter -->
+    <!-- https://www.digitalocean.com/community/tutorials/how-to-add-twitter-card-and-open-graph-social-metadata-to-your-webpage-with-html -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://alekspickle.github.com/axum-template/">
+    <meta property="twitter:title" content="{{ title }}">
+    <meta property="twitter:description" content="Short description of the page">
+    <meta name="twitter:creator" content="@aleks_pickle">
+    <meta name="twitter:image" content="static/home.svg">
+    <!-- RSS Link -->
+    <!--<link rel="alternate" href="/rss.xml" type="application/rss+xml" title="{{ title }}">-->
+    <!-- Sitemap -->
+    <link rel="sitemap" href="/sitemap-index.xml">
+    <!-- Google Search Console -->
+    <!--<meta name="google-site-verification" content="7777777xxxx777777x7x777x77777x777777777x777">-->
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.2" defer=""></script>
+    <!-- Tailwind -->
+    <link rel="stylesheet" defer="" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="static/custom.css">
+    {% if title=="404" %}
+    <link rel="stylesheet" href="static/glitch.css">
+    {% endif %}
+</head>
