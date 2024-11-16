@@ -4,9 +4,17 @@
 //! Template to have something to get-go in some situations
 //!
 //! This template provides:
-//! - Axum server(with middleware)
-//! - Templates
-//! - Containerization
+//! - [x] Axum server(with middleware)
+//! - [x] Askama templates
+//! - [x] Containerization(with compose)
+//! - [ ] SurrealDB backend
+//!
+//! ## Afterthoughts and issues
+//! I found axum to be the most ergonomic web framework out there, and while there might be not
+//! enough examples at the moment, it it quite a breeze to use
+//! - static files was sure one pain in the back to figure out
+//! - surrealdb sure adds complexity, if you want example of sqlite with connection pool example,
+//! check out my other template: [actix-template](https://github.com/alekspickle/actix-template)
 //!
 use std::net::SocketAddr;
 
@@ -15,6 +23,7 @@ use tokio::net::TcpListener;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::info;
 
+mod db;
 mod error;
 mod form_zip;
 mod handlers;
