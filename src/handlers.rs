@@ -1,14 +1,14 @@
+use crate::{db, form_zip, form_zip::ZIP};
 use askama::Template;
 use axum::{
-    extract::Query,
+    extract::{Path, Query},
     http::{StatusCode, Uri},
-    response::{Html, IntoResponse, Response},
+    response::{Html, IntoResponse, Redirect, Response},
+    Form,
 };
 use hyper::{header, HeaderMap};
 use serde::Deserialize;
 use tracing::{error, trace, warn};
-
-use crate::{db, form_zip, form_zip::ZIP};
 
 pub async fn home() -> impl IntoResponse {
     let template = templates::Home {
@@ -22,8 +22,8 @@ pub struct Hello {
     name: Option<String>,
 }
 
-pub async fn hello(query: Query<Hello>) -> impl IntoResponse {
-    let name = query.name.clone().map_or("stranger".to_string(), |l| l);
+pub async fn hello(Query(hello): Query<Hello>) -> impl IntoResponse {
+    let name = hello.name.clone().map_or("stranger".to_string(), |l| l);
 
     let html = templates::Hello {
         name,
@@ -45,6 +45,28 @@ pub async fn posts() -> impl IntoResponse {
     HtmlTemplate(html)
 }
 
+pub async fn add_post(Form(post): Form<db::NewPost>) -> impl IntoResponse {
+    trace!(?post, "Adding new post");
+    db::add_post(post).await.expect("failed to add post");
+
+    Redirect::permanent("/posts").into_response()
+}
+
+pub async fn update_post(Form(post): Form<db::NewPost>, Path(id): Path<u32>) -> impl IntoResponse {
+    trace!(%id, ?post, "Update");
+    db::update_post(id, post).await.expect("failed to add post");
+
+    Redirect::permanent("/posts").into_response()
+}
+
+pub async fn delete_post(Path(id): Path<u32>) -> impl IntoResponse {
+    trace!(%id, "Delete");
+    db::delete_post(id).await.expect("failed to add post");
+
+    Redirect::permanent("/posts").into_response()
+}
+/// Just a test handle that will fail in docker container
+/// to illustrate how axum fails and how to deal with it
 pub async fn fetch_zip() -> impl IntoResponse {
     let zip_res = form_zip::create_zip();
     let Ok(body) = zip_res else {

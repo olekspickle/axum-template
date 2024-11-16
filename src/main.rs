@@ -7,20 +7,23 @@
 //! - [x] Axum server(with middleware)
 //! - [x] Askama templates
 //! - [x] Containerization(with compose)
-//! - [ ] Greeter page with query param name
+//! - [x] Greeter page with query param name
 //! - [ ] Sqlite backend
 //! - [ ] SurrealDB backend
 //!
 //! ## Afterthoughts and issues
 //! I found axum to be the most ergonomic web framework out there, and while there might be not
 //! enough examples at the moment, it is quite a breeze to use
-//! - static files was sure one pain in the back to figure out
-//! - surrealdb sure adds complexity, I'm adding it ubder a feature because sqlite integration is
+//! - static files was sure one noticeable pain in the rear to figure out
+//! - surrealdb sure adds complexity, I'm adding it under a feature because sqlite integration is
 //!     so much less crates to compile(190+ vs 500+)
 //!
+use axum::{
+    middleware::from_fn,
+    routing::{delete, get, patch},
+    Router,
+};
 use std::net::SocketAddr;
-
-use axum::{middleware::from_fn, routing::get, Router};
 use tokio::net::TcpListener;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::info;
@@ -43,8 +46,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(handlers::home))
         .route("/hello", get(handlers::hello))
         .route("/posts", get(handlers::posts))
-        //.route("/add-post", get(handlers::add_posts))
-        //.route("/delete-post", get(handlers::delete_post))
+        .route("/add-post", get(handlers::add_post))
+        .route("/update-post/:id", patch(handlers::update_post))
+        .route("/delete-post/:id", delete(handlers::delete_post))
         .route("/fetch-zip", get(handlers::fetch_zip))
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::handle_404)

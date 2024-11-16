@@ -1,7 +1,5 @@
-use std::{env, fs, io::Write, process::Command};
-
 use crate::error::Result;
-
+use std::{env, fs, io::Write, process::Command};
 use tracing::{trace, warn};
 use zip::{write::SimpleFileOptions, AesMode};
 

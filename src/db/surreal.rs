@@ -1,15 +1,13 @@
 //! ## surrealDB api wrappers
 //!
 //! [Rust SDK reference](https://surrealdb.com/docs/sdk/rust)
+use crate::handlers::{NewPost, Post};
 use std::{env, sync::LazyLock};
-
 use surrealdb::{
     engine::remote::ws::{Client, Ws},
     opt::auth::Root,
     RecordId, Surreal,
 };
-
-use crate::handlers::{NewPost, Post};
 
 /// SurrealDB connection singleton
 /// TODO: should be possible to marry the deadpool with it in the future
