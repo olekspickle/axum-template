@@ -15,21 +15,21 @@ pub async fn index() -> impl IntoResponse {
 
 pub async fn first() -> impl IntoResponse {
     info!("GET `/first`");
-    let template = templates::FirstTemplate {
+    let template = templates::PageTemplate {
         title: "First".to_owned(),
     };
     HtmlTemplate(template)
 }
 pub async fn second() -> impl IntoResponse {
     info!("GET `/second`");
-    let template = templates::FirstTemplate {
+    let template = templates::PageTemplate {
         title: "Second".to_owned(),
     };
     HtmlTemplate(template)
 }
 pub async fn third() -> impl IntoResponse {
     info!("GET `/third`");
-    let template = templates::FirstTemplate {
+    let template = templates::PageTemplate {
         title: "Third".to_owned(),
     };
     HtmlTemplate(template)
@@ -55,20 +55,8 @@ pub mod templates {
     }
 
     #[derive(Template)]
-    #[template(path = "first.html")]
-    pub struct FirstTemplate {
-        pub title: String,
-    }
-
-    #[derive(Template)]
-    #[template(path = "second.html")]
-    pub struct SecondTemplate {
-        pub title: String,
-    }
-
-    #[derive(Template)]
-    #[template(path = "third.html")]
-    pub struct ThirdTemplate {
+    #[template(path = "nav-item.html")]
+    pub struct PageTemplate {
         pub title: String,
     }
 
