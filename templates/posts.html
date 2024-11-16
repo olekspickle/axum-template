@@ -1,0 +1,76 @@
+{% extends "main.html" %}
+
+    {% block content %}
+<!-- Main Content -->
+<div class="container mx-auto p-6">
+    <div class="max-w-xl mx-auto">
+        <!-- Form to send new post to the server -->
+        <form id="post-form" action="/add-post" method="post" class="mb-6 text-black">
+            <input name="user" class="h-8 px-2 border border-gray-300 rounded-lg mb-2" placeholder="write as..." />
+            <textarea
+                name="content"
+                class="w-full p-2 border border-gray-300 rounded-lg mb-2"
+                placeholder="content goes here..."
+            ></textarea>
+
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">post</button>
+        </form>
+
+        <!-- Posts -->
+        <ul id="post-list" class="list-disc list-inside space-y-4 text-black">
+            {% for post in posts %}
+            <!-- Single post as list item -->
+            <li id="post-{{ post.id }}" class="bg-white p-4 border border-gray-200 rounded-lg list-none">
+                <form id="update" action="/update-post/{{ post.id }}" method="patch" class="mb-2 text-black">
+                    <p name="user">{{ post.user }}</p>
+                    <p
+                        contenteditable="true"
+                        name="content"
+                        class="w-full rounded-lg mb-2"
+                        placeholder="content goes here...">
+                        {{ post.content }}
+                    </p>
+                    <div class="flex">
+                        <div class="px-2">
+                            <button
+                                type="submit"
+                                class="bg-blue-500 px-2 text-white rounded">
+                                update
+                            </button>
+                        </div>
+                        <div class="px-2">
+                            <button
+                                hx-delete="/delete-post/{{ post.id }}"
+                                class="bg-red-500 px-2 text-white rounded">
+                                delete
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+import { connect } from "https://deno.land/x/nats@v1.16.0/src/mod.ts";
+
+const servers = Deno.env.get("NATS_URL") || "nats://localhost:4222";
+const nc = await connect({
+    servers: servers.split(","),
+});
+
+const sub_cfg = {callback: |(err, msg)| => {
+    if (err) {
+      console.log(err.message);
+    } else {
+      console.log(msg.data.string());
+}
+  },
+max: 5,
+};
+let sub = nc.subscribe("posts*", sub_cfg);
+
+</script>
+{% endblock content %}
