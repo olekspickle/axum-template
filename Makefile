@@ -34,9 +34,12 @@ tag: pack
 	# cargo pkgid | grep -oP '#\K[^#]+$'
 	docker tag $(crate):local alekspickle/$(crate):v0.1.0
 
+log_level=RUST_LOG=info,axum_template=trace
+
 run-docker-restricted: pack
 	docker run -d \
 		-p 7777:7777 \
 		--hostname $(crate) \
 		--cpus="0.25" --memory="0.5g" \
+		-e $(log_level) \
 		$(crate):local

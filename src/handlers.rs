@@ -1,12 +1,16 @@
+use crate::form_zip::ZIP;
+
 use askama::Template;
 use axum::{
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Response},
 };
-use tracing::{error, info};
+use hyper::{header, HeaderMap};
+use tracing::{error, warn};
+
+use crate::form_zip;
 
 pub async fn index() -> impl IntoResponse {
-    info!("GET `/`");
     let template = templates::MainTemplate {
         title: "Home".to_string(),
     };
@@ -15,18 +19,33 @@ pub async fn index() -> impl IntoResponse {
 
 /// some default pages
 pub async fn main() -> impl IntoResponse {
-    info!("GET `main`");
     let template = templates::PageTemplate {
         title: "Main".to_owned(),
     };
     HtmlTemplate(template)
 }
-pub async fn secondary() -> impl IntoResponse {
-    info!("GET `secondary`");
+pub async fn fetch() -> impl IntoResponse {
     let template = templates::PageTemplate {
-        title: "Secondary page".to_owned(),
+        title: "Fetch".to_owned(),
     };
     HtmlTemplate(template)
+}
+
+pub async fn fetch_zip() -> impl IntoResponse {
+    let zip_res = form_zip::create_zip();
+    let Ok(body) = zip_res else {
+        warn!("Erorr forming zip file:{zip_res:?}");
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_TYPE, "application/zip".parse().unwrap());
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        format!("attachment; filename=\"{ZIP}\"").parse().unwrap(),
+    );
+
+    (headers, body).into_response()
 }
 
 pub async fn handle_404(uri: Uri) -> impl IntoResponse {
@@ -49,7 +68,7 @@ pub mod templates {
     }
 
     #[derive(Template)]
-    #[template(path = "nav-item.html")]
+    #[template(path = "page.html")]
     pub struct PageTemplate {
         pub title: String,
     }

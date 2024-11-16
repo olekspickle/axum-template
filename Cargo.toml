@@ -5,15 +5,16 @@ authors = ["Oleks Pickle <olekspickle@users.noreply.github.com>"]
 edition = "2021"
 
 [dependencies]
-askama = "0.11"
-axum = "0.6.15"
-itertools = "0.11.0"
-serde = "1.0.160"
-serde_json = "1.0.96"
-tokio = { version = "1.0", features = ["full"] }
-tower-http = { version = "0.4.0", features = ["fs", "trace"]}
+anyhow = "1"
+askama = "0.12"
+axum = "0.7"
+hyper = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zip = { version = "2", default-features = false, features = ["aes-crypto"] }
 
 # Without it will be around 11M
 # Uncomment to have up to 3x less binary size: the template itself goes from 5.9M to 2.1M
