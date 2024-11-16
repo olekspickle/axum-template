@@ -14,7 +14,7 @@
 //! enough examples at the moment, it it quite a breeze to use
 //! - static files was sure one pain in the back to figure out
 //! - surrealdb sure adds complexity, if you want example of sqlite with connection pool example,
-//! check out my other template: [actix-template](https://github.com/alekspickle/actix-template)
+//!     check out my other template: [actix-template](https://github.com/alekspickle/actix-template)
 //!
 use std::net::SocketAddr;
 
@@ -37,8 +37,10 @@ async fn main() -> anyhow::Result<()> {
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
     let router = Router::new()
         .route("/", get(handlers::index))
-        .route("/main", get(handlers::main))
-        .route("/fetch", get(handlers::fetch))
+        .route("/hello/:id", get(handlers::home))
+        .route("/posts", get(handlers::posts))
+        //.route("/add-post", get(handlers::add_posts))
+        //.route("/delete-post", get(handlers::delete_post))
         .route("/fetch-zip", get(handlers::fetch_zip))
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::handle_404)
