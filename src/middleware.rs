@@ -15,7 +15,7 @@ pub(crate) async fn log(req: Request<Body>, next: Next) -> Result<Response<Body>
     let (parts, body) = req.into_parts();
 
     if !parts.uri.to_string().contains("static") {
-        info!("{}", parts.uri);
+        //trace!("{}", parts.uri);
     }
 
     let req = Request::from_parts(parts, body);

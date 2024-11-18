@@ -90,10 +90,6 @@ footer a {
     padding: 1.25rem 0;
 }
 
-textarea::placeholder {
-    color: #000;
-}
-
 .wrapper-toggle {
     display: -webkit-box;
     display: -webkit-flex;
@@ -114,6 +110,3 @@ textarea::placeholder {
     background: #ECF0F1;
 }
 
-.btn {
-
-}

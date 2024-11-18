@@ -17,7 +17,7 @@ surreal = ["surrealdb"]
 [dependencies]
 anyhow = "1"
 askama = "0.12"
-axum = "0.7"
+axum = { version = "0.7", features = ["macros"] }
 hyper = "1"
 rustls = "0.23.15"
 serde = { version = "1", features = ["derive"] }

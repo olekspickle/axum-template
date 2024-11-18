@@ -32,7 +32,7 @@
 //!
 use axum::{
     middleware::from_fn,
-    routing::{delete, get, patch},
+    routing::{delete, get, patch, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -50,7 +50,13 @@ mod middleware;
 async fn main() -> anyhow::Result<()> {
     tracing_init();
 
-    db::init().await?;
+    // init DB in the background
+    tokio::spawn(async move {
+        let res = db::init().await;
+        if let Err(e) = res {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
     // Static asset service
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
@@ -58,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(handlers::home))
         .route("/hello", get(handlers::hello))
         .route("/posts", get(handlers::posts))
-        .route("/add-post", get(handlers::add_post))
+        .route("/add-post", post(handlers::add_post))
         .route("/update-post/:id", patch(handlers::update_post))
         .route("/delete-post/:id", delete(handlers::delete_post))
         .route("/fetch-zip", get(handlers::fetch_zip))
@@ -78,20 +84,31 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn tracing_init() {
-    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+    use tracing::Level;
+    use tracing_subscriber::{
+        filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+    };
 
     const NAME: &str = env!("CARGO_PKG_NAME");
 
     let event_format = fmt::format().with_line_number(true);
     let sub_fmt = tracing_subscriber::fmt::layer().event_format(event_format);
+
     let fallback_log_level: EnvFilter = match cfg!(debug_assertions) {
         true => format!("info,{NAME}=debug").into(),
         _ => "info".into(),
     };
     let log_level = EnvFilter::try_from_default_env().unwrap_or(fallback_log_level);
+    let fltr = filter::Targets::new()
+        .with_target("tower_http::trace::on_response", Level::TRACE)
+        //.with_target("tower_http::trace::on_request", Level::TRACE)
+        .with_target("tower_http::trace::make_span", Level::DEBUG)
+        .with_default(Level::INFO);
+
     info!(%log_level, "Using tracing");
     tracing_subscriber::registry()
         .with(sub_fmt)
         .with(log_level)
+        .with(fltr)
         .init();
 }
