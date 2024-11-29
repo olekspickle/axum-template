@@ -1,7 +1,7 @@
 [package]
 name = "axum-template"
 version = "0.1.0"
-authors = ["Oleks Pickle <olekspickle@users.noreply.github.com>"]
+authors = ["Oleks Pickle <22867443+olekspickle@users.noreply.github.com>"]
 edition = "2021"
 licence = "MIT OR Apache-2.0"
 repository = "https://github.com/olekspickle/axum-template"
