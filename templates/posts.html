@@ -8,9 +8,12 @@
         <form id="post-form" action="/add-post" method="post" class="mb-6 text-black">
             <input name="user" class="h-8 px-2 border border-gray-300 rounded-lg mb-2" placeholder="write as..." />
             <textarea
+                autofocus
                 name="content"
-                class="w-full p-2 border border-gray-300 rounded-lg mb-2"
-                placeholder="content goes here..."
+                form="post-form"
+                spellcheck="true"
+                class="w-full p-2 border border-gray-300 rounded-lg mb-2 text-gray"
+                placeholder="what's on your mind?"
             ></textarea>
 
             <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">post</button>
@@ -24,8 +27,9 @@
                 <form id="update" action="/update-post/{{ post.id }}" method="patch" class="mb-2 text-black">
                     <p name="user">{{ post.user }}</p>
                     <p
-                        contenteditable="true"
                         name="content"
+                        spellcheck="true"
+                        contenteditable="true"
                         class="w-full rounded-lg mb-2"
                         placeholder="content goes here...">
                         {{ post.content }}
@@ -54,25 +58,46 @@
 </div>
 
 <script>
+var textArea = document.querySelector('textarea'),
+post = document.getElementById('post'),
+butWho = document.getElementById('who');
 
-// just a simple script for nats fetch
-import { connect } from "https://deno.land/x/nats@v1.16.0/src/mod.ts";
+textArea.onfocus = function () {
+    'use strict';
 
-const servers = Deno.env.get("NATS_URL") || "nats://localhost:4222";
-const nc = await connect({
-servers: servers.split(","),
-});
-
-const sub_cfg = {callback: |(err, msg)| => {
-    if (err) {
-      console.log(err.message);
-    } else {
-      console.log(msg.data.string());
-}
-  },
-max: 5,
+    if (textArea.getAttribute('placeholder') === "what's on your mind?") {
+        textArea.setAttribute('placeholder', '');
+    }
+    post.style.background = 'rgba(0,0,0,0.6)';
 };
-let sub = nc.subscribe("posts*", sub_cfg);
+
+textArea.onblur = function () {
+    'use strict';
+    if (textArea.getAttribute('placeholder') === '') {
+        textArea.setAttribute('placeholder', "what's on your mind?");
+    }
+    post.style.background = 'rgba(0,0,0,0)';
+};
+
+// TODO: find excuse to integrate nats
+//// just a simple script for nats fetch
+//import { connect } from "https://deno.land/x/nats@v1.16.0/src/mod.ts";
+//
+//const servers = Deno.env.get("NATS_URL") || "nats://localhost:4222";
+//const nc = await connect({
+//servers: servers.split(","),
+//});
+//
+//const sub_cfg = {callback: |(err, msg)| => {
+//    if (err) {
+//      console.log(err.message);
+//    } else {
+//      console.log(msg.data.string());
+//}
+//  },
+//max: 5,
+//};
+//let sub = nc.subscribe("posts*", sub_cfg);
 
 </script>
 {% endblock content %}

@@ -8,7 +8,7 @@
 //! - [x] Askama templates
 //! - [x] Containerization(with compose)
 //! - [x] Greeter page with query param name
-//! - [ ] Sqlite backend
+//! - [x] Sqlite backend
 //! - [ ] SurrealDB backend
 //!
 //! # Running

@@ -57,17 +57,18 @@ pub async fn update_post(Path(id): Path<u32>, Form(post): Form<db::NewPost>) -> 
     trace!(%id, ?post, "Update");
     db::update_post(id, post).await.expect("failed to add post");
 
-    Redirect::to("/posts").into_response()
+    Redirect::permanent("/posts").into_response()
 }
 
 pub async fn delete_post(Path(id): Path<u32>) -> impl IntoResponse {
     trace!(%id, "Delete");
     db::delete_post(id).await.expect("failed to add post");
 
-    Redirect::to("/posts").into_response()
+    Redirect::permanent("/posts").into_response()
 }
+
 /// Just a test handle that will fail in docker container
-/// to illustrate how axum fails and how to deal with it
+/// to illustrate how axum can silently fail if you encounter unhandled error
 pub async fn fetch_zip() -> impl IntoResponse {
     let zip_res = form_zip::create_zip();
     let Ok(body) = zip_res else {
