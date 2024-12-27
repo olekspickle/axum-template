@@ -1,4 +1,4 @@
-//! ![axum-template](https://private-user-images.githubusercontent.com/22867443/395807393-714f8d47-1e8e-4544-8516-67270985d916.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzQxOTc1MzcsIm5iZiI6MTczNDE5NzIzNywicGF0aCI6Ii8yMjg2NzQ0My8zOTU4MDczOTMtNzE0ZjhkNDctMWU4ZS00NTQ0LTg1MTYtNjcyNzA5ODVkOTE2LmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDEyMTQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMjE0VDE3MjcxN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTc4MzhmOWQ4YWNlMGExZTliYmFjODMxNGQ1MWE1M2IyNWU0OGUzODVhNjY2MzJiY2JmM2FlNDU5YzE5OTc0ZjgmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.I16zH9fwBo7N99jlqEtMzHl0ZjFOGrWX0UlXZs0xNFc)
+//! ![axum-template](https://github.com/user-attachments/assets/a16843e7-7537-4c73-a550-52a37b6fbf73)
 //!
 //! ## Overview
 //! Template to have something to get-go in some situations
@@ -112,3 +112,42 @@ fn tracing_init() {
         .with(fltr)
         .init();
 }
+
+/// use openssl to generate ssl certs
+/// openssl req -newkey rsa:2048 -new -nodes -keyout key.pem -out csr.pem
+///
+/// or for dev purposes
+///
+/// openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem -addext "subjectAltName = DNS:mydnsname.com"
+// fn _load_rustls_config() -> rustls::ServerConfig {
+//     use std::{fs::File, io::BufReader};
+//
+//     use rustls::{pki_types::PrivateKeyDer, ServerConfig};
+//     use rustls_pemfile::{certs, pkcs8_private_keys};
+//
+//     rustls::crypto::aws_lc_rs::default_provider()
+//         .install_default()
+//         .unwrap();
+//
+//     // init server config builder with safe defaults
+//     let config = ServerConfig::builder().with_no_client_auth();
+//
+//     // load TLS key/cert files
+//     let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
+//     let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
+//
+//     // convert files to key/cert objects
+//     let cert_chain = certs(cert_file).collect::<Result<Vec<_>, _>>().unwrap();
+//     let mut keys = pkcs8_private_keys(key_file)
+//         .map(|key| key.map(PrivateKeyDer::Pkcs8))
+//         .collect::<Result<Vec<_>, _>>()
+//         .unwrap();
+//
+//     // exit if no keys could be parsed
+//     if keys.is_empty() {
+//         eprintln!("Could not locate PKCS 8 private keys.");
+//         std::process::exit(1);
+//     }
+//
+//     config.with_single_cert(cert_chain, keys.remove(0)).unwrap()
+// }
