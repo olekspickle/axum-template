@@ -113,12 +113,12 @@ fn tracing_init() {
         .init();
 }
 
-/// use openssl to generate ssl certs
-/// openssl req -newkey rsa:2048 -new -nodes -keyout key.pem -out csr.pem
-///
-/// or for dev purposes
-///
-/// openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem -addext "subjectAltName = DNS:mydnsname.com"
+///// use openssl to generate ssl certs
+///// openssl req -newkey rsa:2048 -new -nodes -keyout key.pem -out csr.pem
+/////
+///// or for dev purposes
+/////
+///// openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem -addext "subjectAltName = DNS:mydnsname.com"
 // fn _load_rustls_config() -> rustls::ServerConfig {
 //     use std::{fs::File, io::BufReader};
 //
