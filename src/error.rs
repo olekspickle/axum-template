@@ -1,18 +1,20 @@
+use displaydoc::Display;
 use thiserror::Error;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Debug)]
+#[derive(Display, Error, Debug)]
 pub(crate) enum Error {
-    #[error(transparent)]
+    /// IO: {0}
     IO(#[from] std::io::Error),
-    #[error("Could not create file")]
+    /// Could not create file
     CreateFile,
-    #[error(transparent)]
+    /// Failed to form encrypted zip file
     Zip(#[from] zip::result::ZipError),
+    /// Failed to execute sqlite query
     #[cfg(feature = "sqlite")]
-    #[error(transparent)]
     Sqlite(#[from] rusqlite::Error),
+    /// Failed to execute surrealdb query
     #[cfg(feature = "surreal")]
     #[error(transparent)]
     Surreal(#[from] surrealdb::error::Error),
