@@ -24,21 +24,26 @@
 //! You can peek into Makefile for build details
 //!
 //! ## Afterthoughts and issues
+//!
 //! I found axum to be the most ergonomic web framework out there, and while there might be not
-//! enough examples at the moment, it is quite a breeze to use
+//! enough examples at the moment, it is quite a breeze to use.
+//! Some caveats tho:
 //! - static files was sure one noticeable pain in the rear to figure out
 //! - surrealdb sure adds complexity, I'm adding it under a feature because sqlite integration is
 //!     so much less crates to compile(190+ vs 500+)
 //!
-use axum::{
-    middleware::from_fn,
-    routing::{delete, get, patch, post},
-    Router,
-};
+
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::{
+    Router,
+    middleware::{from_fn, from_fn_with_state},
+    routing::{delete, get, patch, post},
+};
 use tokio::net::TcpListener;
 use tower_http::{services::ServeDir, trace::TraceLayer};
-use tracing::info;
 
 mod db;
 mod error;
@@ -46,17 +51,33 @@ mod form_zip;
 mod handlers;
 mod middleware;
 
+#[derive(Clone)]
+struct AppState {
+    token_manager: Arc<middleware::TokenManager>,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_init();
 
-    // init DB in the background
+    let token_manager = Arc::new(middleware::TokenManager::new(3600));
+    let auth = token_manager.clone();
     tokio::spawn(async move {
-        let res = db::init().await;
-        if let Err(e) = res {
-            eprintln!("connection error: {}", e);
+        let mut interval = tokio::time::interval(Duration::from_secs(300));
+        loop {
+            interval.tick().await;
+            auth.cleanup().await;
         }
     });
+
+    // init DB in the background
+    tokio::spawn(async move {
+        if let Err(e) = db::init().await {
+            tracing::error!(error=?e, "failed to connect to DB");
+        }
+    });
+
+    let state = AppState { token_manager };
 
     // Static asset service
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
@@ -70,14 +91,17 @@ async fn main() -> anyhow::Result<()> {
         .route("/fetch-zip", get(handlers::fetch_zip))
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::handle_404)
-        .layer(from_fn(middleware::auth))
-        .layer(from_fn(middleware::log))
+        .layer(from_fn_with_state(state.clone(), middleware::auth))
+        .layer(from_fn(middleware::auth_basic))
+        .layer(from_fn(middleware::custom_log))
         .layer(TraceLayer::new_for_http())
+        .with_state(state)
         .into_make_service();
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 7777));
+    let host = std::env::var("TEMPLATE_HOST").unwrap_or("0.0.0.0:7777".to_owned());
+    let addr: SocketAddr = host.parse().expect("invalid TEMPLATE_HOST");
     let listener = TcpListener::bind(addr).await?;
-    info!("listening on {}", addr);
+    tracing::info!(address = %addr, "listening");
 
     axum::serve(listener, router).await.unwrap();
     Ok(())
@@ -86,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 fn tracing_init() {
     use tracing::Level;
     use tracing_subscriber::{
-        filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+        EnvFilter, filter, fmt, layer::SubscriberExt, util::SubscriberInitExt,
     };
 
     const NAME: &str = env!("CARGO_PKG_NAME");
@@ -99,13 +123,14 @@ fn tracing_init() {
         _ => "info".into(),
     };
     let log_level = EnvFilter::try_from_default_env().unwrap_or(fallback_log_level);
+
     let fltr = filter::Targets::new()
         .with_target("tower_http::trace::on_response", Level::TRACE)
         //.with_target("tower_http::trace::on_request", Level::TRACE)
         .with_target("tower_http::trace::make_span", Level::DEBUG)
         .with_default(Level::INFO);
 
-    info!(%log_level, "Using tracing");
+    tracing::info!(%log_level, "Using tracing");
     tracing_subscriber::registry()
         .with(sub_fmt)
         .with(log_level)

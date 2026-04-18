@@ -13,7 +13,8 @@ services:
     networks:
       - spider-web
     environment:
-      - RUST_LOG=info,actix_template=trace
+      - TEMPLATE_HOST=0.0.0.0:7777
+      - MANAGER_AUTH_TOKEN=secret
       - SURREALDB_URL=ws://surrealdb:8000  # SurrealDB WebSocket URL
       - SURREALDB_USER=root
       - SURREALDB_PASS=root

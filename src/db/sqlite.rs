@@ -1,14 +1,14 @@
+use std::sync::LazyLock;
+
 use super::{NewPost, Post};
 use anyhow::Result;
 use deadpool_sqlite::{Config, Pool, Runtime};
 use serde_rusqlite::*;
-use std::sync::LazyLock;
-use tracing::debug;
 
 /// SQlite connection pool singleton
 pub static DB: LazyLock<Pool> = LazyLock::new(|| {
     let cfg = Config::new("posts.sqlite3");
-    debug!("Initializing sqlite connection pool...");
+    tracing::debug!("Initializing sqlite connection pool...");
     cfg.create_pool(Runtime::Tokio1)
         .expect("failed to initialize pool")
 });
@@ -16,7 +16,7 @@ pub static DB: LazyLock<Pool> = LazyLock::new(|| {
 /// Init DB: create posts table
 pub async fn init() -> Result<()> {
     let conn = DB.get().await?;
-    debug!("Creating posts table...");
+    tracing::debug!("Creating posts table...");
     if let Ok(conn) = conn.try_lock() {
         let _ = conn.execute(
             "CREATE TABLE IF NOT EXISTS posts (

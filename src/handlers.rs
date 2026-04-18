@@ -1,12 +1,12 @@
 use crate::{db, form_zip, form_zip::ZIP};
 use askama::Template;
 use axum::{
+    Form,
     extract::{Path, Query},
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Redirect, Response},
-    Form,
 };
-use hyper::{header, HeaderMap};
+use hyper::{HeaderMap, header};
 use serde::Deserialize;
 use tracing::{error, trace, warn};
 
@@ -46,8 +46,7 @@ pub async fn posts() -> impl IntoResponse {
 }
 
 pub async fn add_post(Form(post): Form<db::NewPost>) -> impl IntoResponse {
-    dbg!(&post);
-    trace!(?post, "Adding new post");
+    tracing::trace!(?post, "Adding new post");
     db::add_post(post).await.expect("failed to add post");
 
     Redirect::to("/posts").into_response()

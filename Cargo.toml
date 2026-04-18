@@ -1,9 +1,9 @@
 [package]
 name = "axum-template"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Oleks Pickle <22867443+olekspickle@users.noreply.github.com>"]
-edition = "2021"
-licence = "MIT OR Apache-2.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/olekspickle/axum-template"
 description = """
 Axum template with askama templates and a bit of htmx magic and simple surrealdb setup
@@ -28,6 +28,7 @@ tower-http = { version = "0.5", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["aes-crypto"] }
+uuid = { version = "1", features = ["v4"] }
 
 #sqlite
 deadpool = { version = "0.12.1", optional = true }
