@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    {% include "head.html" %}
+
+    <body>
+        {% include "nav.html" %}
+        <main>
+            <section class="py-16">
+                <div class="container mx-auto max-w-4xl">
+                    <h1>{{ project.title }}</h1>
+                    <p>{{ project.description }}</p>
+                </div>
+            </section>
+        </main>
+        {% include "footer.html" %}
+    </body>
+</html>

@@ -1,14 +1,14 @@
 use crate::error::Result;
 use std::{env, fs, io::Write, process::Command};
 use tracing::{trace, warn};
-use zip::{write::SimpleFileOptions, AesMode};
+use zip::{AesMode, write::SimpleFileOptions};
 
 pub(crate) const FILE: &str = "my.txt";
 pub(crate) const ZIP: &str = "my.zip";
 
 pub fn create_zip() -> Result<()> {
     let Ok(file) = fs::File::create(ZIP).inspect_err(|e| warn!("create file {e}")) else {
-        return Err(crate::error::Error::CreateFile);
+        return Err(crate::error::AppError::CreateFile);
     };
     let mut zip = zip::ZipWriter::new(file);
     let secret = env::var("SECRET").unwrap_or_else(|_| "test".into());

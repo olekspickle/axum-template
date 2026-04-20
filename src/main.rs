@@ -1,37 +1,33 @@
 //! ![axum-template](https://github.com/user-attachments/assets/a16843e7-7537-4c73-a550-52a37b6fbf73)
 //!
 //! ## Overview
-//! Template to have something to get-go in some situations
+//! Portfolio/blog website template for a company that does software/games/interactive projects
 //!
 //! This template provides:
-//! - [x] Axum server(with middleware)
+//! - [x] Axum server with middleware
 //! - [x] Askama templates
-//! - [x] Containerization(with compose)
-//! - [x] Greeter page with query param name
-//! - [x] Sqlite backend
-//! - [ ] SurrealDB backend
+//! - [x] Containerization (with compose)
+//! - [x] Portfolio projects management
+//! - [x] Blog with markdown support
+//! - [x] Admin panel with authentication
+//! - [x] SQLite backend (default)
+//! - [x] SurrealDB backend (optional, behind feature flag)
 //!
 //! # Running
 //! ```bash
-//! # Sqlite3 backend:
+//! # SQLite3 backend:
 //! make run
 //!
-//! # surrealdb backend
+//! # SurrealDB backend
 //! make surreal
-//!
 //! ```
 //!
-//! You can peek into Makefile for build details
-//!
-//! ## Afterthoughts and issues
-//!
-//! I found axum to be the most ergonomic web framework out there, and while there might be not
-//! enough examples at the moment, it is quite a breeze to use.
-//! Some caveats tho:
-//! - static files was sure one noticeable pain in the rear to figure out
-//! - surrealdb sure adds complexity, I'm adding it under a feature because sqlite integration is
-//!     so much less crates to compile(190+ vs 500+)
-//!
+//! ## Configuration
+//! Edit `config.toml` to configure:
+//! - Server host/port
+//! - Database path
+//! - Admin credentials (password is argon2 hashed)
+//! - Site name and tagline
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -40,102 +36,110 @@ use std::time::Duration;
 use axum::{
     Router,
     middleware::{from_fn, from_fn_with_state},
-    routing::{delete, get, patch, post},
+    routing::get,
 };
+use itertools::Itertools;
 use tokio::net::TcpListener;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
+mod api;
+mod config;
 mod db;
+use db::Db;
 mod error;
-mod form_zip;
 mod handlers;
+mod how_to;
 mod middleware;
+mod state;
 
-#[derive(Clone)]
-struct AppState {
-    token_manager: Arc<middleware::TokenManager>,
+async fn auth_cleanup(auth: Arc<middleware::TokenManager>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(300));
+    loop {
+        interval.tick().await;
+        auth.cleanup().await;
+    }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_init();
 
-    let token_manager = Arc::new(middleware::TokenManager::new(3600));
+    let config = Arc::new(config::Config::load("config.toml")?);
+    let config_addr = config.address();
+
+    let db = db::create_db(&config).await?;
+    db.init().await?;
+
+    let token_manager = Arc::new(middleware::TokenManager::new(
+        config.auth.token_ttl,
+        config.admin_credentials(),
+    ));
     let auth = token_manager.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(300));
-        loop {
-            interval.tick().await;
-            auth.cleanup().await;
-        }
-    });
+    tokio::spawn(auth_cleanup(auth.clone()));
 
-    // init DB in the background
-    tokio::spawn(async move {
-        if let Err(e) = db::init().await {
-            tracing::error!(error=?e, "failed to connect to DB");
-        }
-    });
+    let state = state::AppState {
+        db: Arc::<dyn Db>::from(db),
+        config,
+        token_manager,
+    };
 
-    let state = AppState { token_manager };
-
-    // Static asset service
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
     let router = Router::new()
         .route("/", get(handlers::home))
-        .route("/hello", get(handlers::hello))
-        .route("/posts", get(handlers::posts))
-        .route("/add-post", post(handlers::add_post))
-        .route("/update-post/:id", patch(handlers::update_post))
-        .route("/delete-post/:id", delete(handlers::delete_post))
-        .route("/fetch-zip", get(handlers::fetch_zip))
+        .route("/projects", get(handlers::projects))
+        .route("/projects/{slug}", get(handlers::project_detail))
+        .route("/blog", get(handlers::blog))
+        .route("/blog/{slug}", get(handlers::post_detail))
+        .route("/about", get(handlers::about))
+        .route("/contact", get(handlers::contact))
+        .nest("/api", api::router())
+        .nest("/admin", handlers::admin::router(state.clone()))
         .nest_service("/static", serve_dir.clone())
-        .fallback(handlers::handle_404)
+        .fallback(handlers::to_404)
         .layer(from_fn_with_state(state.clone(), middleware::auth))
-        .layer(from_fn(middleware::auth_basic))
         .layer(from_fn(middleware::custom_log))
         .layer(TraceLayer::new_for_http())
-        .with_state(state)
-        .into_make_service();
+        .with_state(state.clone());
 
-    let host = std::env::var("TEMPLATE_HOST").unwrap_or("0.0.0.0:7777".to_owned());
-    let addr: SocketAddr = host.parse().expect("invalid TEMPLATE_HOST");
+    let addr: SocketAddr = config_addr.parse().expect("invalid address");
     let listener = TcpListener::bind(addr).await?;
     tracing::info!(address = %addr, "listening");
 
-    axum::serve(listener, router).await.unwrap();
+    axum::serve(listener, router.into_make_service()).await?;
     Ok(())
 }
 
 fn tracing_init() {
-    use tracing::Level;
-    use tracing_subscriber::{
-        EnvFilter, filter, fmt, layer::SubscriberExt, util::SubscriberInitExt,
-    };
+    use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
     const NAME: &str = env!("CARGO_PKG_NAME");
-
-    let event_format = fmt::format().with_line_number(true);
-    let sub_fmt = tracing_subscriber::fmt::layer().event_format(event_format);
+    let name = NAME.replace('_', "-");
 
     let fallback_log_level: EnvFilter = match cfg!(debug_assertions) {
-        true => format!("info,{NAME}=debug").into(),
+        true => format!(
+            "debug,\
+            {name}=debug,\
+            tower_http=debug,\
+            sqlx=info,\
+            rusqlite=debug,\
+            axum::rejection=trace,\
+            tower_http::trace::on_response=trace,\
+            tower_http::trace::on_request=trace"
+        )
+        .into(),
         _ => "info".into(),
     };
     let log_level = EnvFilter::try_from_default_env().unwrap_or(fallback_log_level);
 
-    let fltr = filter::Targets::new()
-        .with_target("tower_http::trace::on_response", Level::TRACE)
-        //.with_target("tower_http::trace::on_request", Level::TRACE)
-        .with_target("tower_http::trace::make_span", Level::DEBUG)
-        .with_default(Level::INFO);
-
-    tracing::info!(%log_level, "Using tracing");
+    let fmt = fmt::format().with_line_number(true);
+    let sub_fmt = tracing_subscriber::fmt::layer().event_format(fmt);
     tracing_subscriber::registry()
         .with(sub_fmt)
-        .with(log_level)
-        .with(fltr)
+        .with(log_level.clone())
         .init();
+
+    let pretty = log_level.to_string().split(',').rev().join("\n");
+    tracing::info!(level=%pretty, "set up logging.");
 }
 
 ///// use openssl to generate ssl certs

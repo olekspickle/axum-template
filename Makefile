@@ -27,10 +27,6 @@ tag: pack
 	# cargo pkgid | grep -oP '#\K[^#]+$'
 	docker tag $(crate):local olekspickle/$(crate):v0.1.0
 
-log_level=RUST_LOG=trace,tower_http=debug,axum::rejection=trace,axum_template=trace
-
-run:
-	$(log_level) cargo run
 
 run-surreal:
 	docker compose -f compose.yml up --build

@@ -1,8 +1,15 @@
-{% extends "home.html" %}
+<!DOCTYPE html>
+<html>
+    {% include "head.html" %}
 
-{% block content %}
-
-<h1 title="404" class="oops">404</h1>
-<h2 title="{{ uri }}" class="oops oopsie">{{ uri }}</h2>
-
-{% endblock content %}
+    <body class="bg-gray-50">
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="text-center">
+                <h1 class="text-9xl font-bold text-gray-200">404</h1>
+                <p class="text-2xl font-semibold text-gray-600 mt-4">Page Not Found</p>
+                <p class="text-gray-500 mt-2">The page "{{ uri }}" does not exist.</p>
+                <a href="/" class="inline-block mt-6 text-indigo-600 hover:text-indigo-800">Go Home</a>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,28 @@
+[server]
+host = "0.0.0.0"
+port = 7777
+
+[auth]
+token_ttl = 3600
+admin_username = "admin"
+admin_password = "admin"
+
+[db]
+path = "posts.db"
+
+[db.surreal]
+url = "ws://localhost:8000"
+user = "root"
+pass = "root"
+namespace = "studio"
+name = "portfolio"
+
+[site]
+name = "Studio Name"
+tagline = "We create interactive experiences"
+default_language = "en"
+
+[zip]
+path = "my.zip"
+file = "my.txt"
+

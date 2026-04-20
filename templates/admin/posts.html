@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+    {% include "../head.html" %}
+
+    <body>
+        <div class="flex min-h-screen">
+            <aside class="w-64 bg-gray-800 text-white p-6">
+                <h2 class="text-xl font-bold mb-8">Admin Panel</h2>
+                <nav class="space-y-4">
+                    <a href="/admin" class="block py-2 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                    <a href="/admin/projects" class="block py-2 px-4 rounded hover:bg-gray-700">Projects</a>
+                    <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
+                    <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
+                    <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                </nav>
+            </aside>
+            
+            <main class="flex-1 p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold">Posts</h1>
+                    <a href="/admin/posts/new" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Add New Post</a>
+                </div>
+                
+                {% if !posts.is_empty() %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Published</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for post in posts %}
+                            <tr>
+                                <td class="px-6 py-4">{{ post.title }}</td>
+                                <td class="px-6 py-4">{{ post.author }}</td>
+                                <td class="px-6 py-4">
+                                    {% if post.published %}
+                                    <span class="text-green-600">Yes</span>
+                                    {% else %}
+                                    <span class="text-gray-400">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 space-x-2">
+                                    <a href="/admin/posts/{{ post.id }}" class="text-indigo-600 hover:underline">Edit</a>
+                                    <form method="POST" action="/admin/posts/{{ post.id }}" class="inline">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this post?')">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-gray-600">No posts yet.</p>
+                {% endif %}
+            </main>
+        </div>
+    </body>
+</html>

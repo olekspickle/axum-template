@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+    {% include "../head.html" %}
+
+    <body>
+        <div class="flex min-h-screen">
+            <aside class="w-64 bg-gray-800 text-white p-6">
+                <h2 class="text-xl font-bold mb-8">Admin Panel</h2>
+                <nav class="space-y-4">
+                    <a href="/admin" class="block py-2 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                    <a href="/admin/projects" class="block py-2 px-4 rounded hover:bg-gray-700">Projects</a>
+                    <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
+                    <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
+                    <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                </nav>
+            </aside>
+            
+            <main class="flex-1 p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold">Team Members</h1>
+                </div>
+                
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4">Add New Member</h2>
+                    <form method="POST" class="space-y-4 max-w-xl">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" name="name" placeholder="Name" required
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <input type="text" name="role" placeholder="Role" required
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <textarea name="bio" placeholder="Bio" rows="2" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                        <input type="url" name="photo_url" placeholder="Photo URL" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <div class="grid grid-cols-3 gap-4">
+                            <input type="url" name="github_url" placeholder="GitHub URL"
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <input type="url" name="twitter_url" placeholder="Twitter URL"
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <input type="url" name="linkedin_url" placeholder="LinkedIn URL"
+                                class="px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                            Add Team Member
+                        </button>
+                    </form>
+                </div>
+                
+                {% if !members.is_empty() %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Photo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for member in members %}
+                            <tr>
+                                <td class="px-6 py-4">
+                                    <img src="{{ member.photo_url }}" alt="{{ member.name }}" class="w-12 h-12 rounded-full object-cover">
+                                </td>
+                                <td class="px-6 py-4">{{ member.name }}</td>
+                                <td class="px-6 py-4">{{ member.role }}</td>
+                                <td class="px-6 py-4">
+                                    <form method="POST" action="/admin/team/{{ member.id }}" class="inline">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this team member?')">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-gray-600">No team members yet.</p>
+                {% endif %}
+            </main>
+        </div>
+    </body>
+</html>

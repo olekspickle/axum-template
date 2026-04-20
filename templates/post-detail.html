@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    {% include "head.html" %}
+
+    <body>
+        {% include "nav.html" %}
+        <main>
+            <section class="py-16">
+                <div class="container mx-auto max-w-4xl">
+                    <a href="/blog" class="text-indigo-600 hover:underline mb-4 inline-block">&larr; Back to Blog</a>
+                    
+                    <article class="mt-8">
+                        <img src="{{ post.cover_image }}" alt="{{ post.title }}" class="w-full rounded-lg">
+                        
+                        <h1 class="text-4xl font-bold mt-8">{{ post.title }}</h1>
+                        
+                        <div class="mt-4 flex items-center text-gray-500">
+                            <span class="font-medium">{{ post.author }}</span>
+                            <span class="mx-2">&bull;</span>
+                            <span>{{ post.created_at }}</span>
+                        </div>
+                        
+                        <div class="mt-8 prose max-w-none">
+{{ content_html }}
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+
+        {% include "footer.html" %}
+    </body>
+</html>

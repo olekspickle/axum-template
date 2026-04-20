@@ -5,17 +5,84 @@
     <body>
         {% include "nav.html" %}
         <main>
-            <section class="flex flex-col items-center">
-                {% block content %}{% endblock content %}
-                <div id="particles-js">
-                    <script src="static/particles.js"></script>
-                    <script src="static/particles-cfg.js"></script>
+            <section class="hero py-20 text-center">
+                <h1 class="text-5xl font-bold mb-4">{{ site_name }}</h1>
+                <p class="text-xl text-gray-600 mb-8">{{ tagline }}</p>
+                <div class="flex justify-center space-x-4">
+                    <a href="/projects" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">View Projects</a>
+                    <a href="/contact" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition">Contact Us</a>
                 </div>
             </section>
+
+            {% if !featured_projects.is_empty() %}
+            <section class="py-16 bg-gray-50">
+                <div class="container mx-auto">
+                    <h2 class="text-3xl font-bold text-center mb-12">Featured Projects</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {% for project in featured_projects %}
+                        <a href="/projects/{{ project.slug }}" class="block">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition">
+                                <img src="{{ project.thumbnail_url }}" alt="{{ project.title }}" class="w-full h-48 object-cover">
+                                <div class="p-6">
+                                    <span class="text-sm text-indigo-600 font-semibold">{{ project.category }}</span>
+                                    <h3 class="text-xl font-bold mt-2">{{ project.title }}</h3>
+                                    <p class="text-gray-600 mt-2 line-clamp-2">{{ project.description }}</p>
+                                    {% if !project.tech_stack.is_empty() %}
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        {% for tech in project.tech_stack %}
+                                        <span class="text-xs bg-gray-100 px-2 py-1 rounded">{{ tech }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if !recent_posts.is_empty() %}
+            <section class="py-16">
+                <div class="container mx-auto">
+                    <h2 class="text-3xl font-bold text-center mb-12">Latest from Blog</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {% for post in recent_posts %}
+                        <a href="/blog/{{ post.slug }}" class="block">
+                            <div class="border rounded-lg p-6 hover:shadow-lg transition">
+                                <h3 class="text-xl font-bold">{{ post.title }}</h3>
+                                <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt }}</p>
+                                <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
+                                    <span>{{ post.author }}</span>
+                                    <span>{{ post.created_at }}</span>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if !team_members.is_empty() %}
+            <section class="py-16 bg-gray-50">
+                <div class="container mx-auto">
+                    <h2 class="text-3xl font-bold text-center mb-12">Our Team</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {% for member in team_members %}
+                        <div class="text-center">
+                            <img src="{{ member.photo_url }}" alt="{{ member.name }}" class="w-32 h-32 rounded-full mx-auto object-cover">
+                            <h3 class="text-lg font-bold mt-4">{{ member.name }}</h3>
+                            <p class="text-indigo-600">{{ member.role }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
         </main>
-        <script src="static/cassidoo.js"></script>
 
         {% include "footer.html" %}
     </body>
-
 </html>

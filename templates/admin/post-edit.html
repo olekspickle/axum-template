@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    {% include "../head.html" %}
+
+    <body>
+        <div class="flex min-h-screen">
+            <aside class="w-64 bg-gray-800 text-white p-6">
+                <h2 class="text-xl font-bold mb-8">Admin Panel</h2>
+                <nav class="space-y-4">
+                    <a href="/admin" class="block py-2 px-4 rounded hover:bg-gray-700">Dashboard</a>
+                    <a href="/admin/projects" class="block py-2 px-4 rounded hover:bg-gray-700">Projects</a>
+                    <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
+                    <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
+                    <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                </nav>
+            </aside>
+            
+            <main class="flex-1 p-8">
+                <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = post %}Edit{% else %}Add{% endif %} Post</h1>
+                
+                <form method="POST" class="space-y-6 max-w-2xl">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Title</label>
+                        <input type="text" name="title" value="{% if let Some(p) = post %}{{ p.title }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Slug</label>
+                        <input type="text" name="slug" value="{% if let Some(p) = post %}{{ p.slug }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Content (Markdown)</label>
+                        <textarea name="content" rows="12" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg font-mono">{% if let Some(p) = post %}{{ p.content }}{% endif %}</textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Excerpt</label>
+                        <textarea name="excerpt" rows="3" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">{% if let Some(p) = post %}{{ p.excerpt }}{% endif %}</textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Cover Image URL</label>
+                        <input type="url" name="cover_image" value="{% if let Some(p) = post %}{{ p.cover_image }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                        <input type="text" name="tags" value=""
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Author</label>
+                        <input type="text" name="author" value="{% if let Some(p) = post %}{{ p.author }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="published"
+                                class="rounded border-gray-300 text-indigo-600">
+                            <span class="ml-2 text-sm text-gray-700">Published</span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
+                        {% if let Some(p) = post %}Update{% else %}Create{% endif %} Post
+                    </button>
+                </form>
+            </main>
+        </div>
+    </body>
+</html>
