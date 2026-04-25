@@ -40,7 +40,7 @@ impl From<Post> for PostResponse {
 
 #[utoipa::path(
     get,
-    path = ENDPOINT,
+    path = "/api/v1/posts",
     responses(
         (status = 200, description = "List of published posts", body = Vec<PostResponse>),
     )

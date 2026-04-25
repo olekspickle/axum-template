@@ -60,7 +60,6 @@ to {
 }
 
 a {
-    color: var(--black);
     text-decoration-thickness: .3ex;
     text-underline-offset: .3ex;
 }

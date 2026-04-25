@@ -41,6 +41,8 @@ use axum::{
 use itertools::Itertools;
 use tokio::net::TcpListener;
 use tower_http::{services::ServeDir, trace::TraceLayer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod api;
 mod config;
@@ -77,14 +79,30 @@ async fn main() -> anyhow::Result<()> {
     let auth = token_manager.clone();
     tokio::spawn(auth_cleanup(auth.clone()));
 
-    let state = state::AppState {
-        db: Arc::<dyn Db>::from(db),
+    let db = Arc::<dyn Db>::from(db);
+    let user_state = state::AppState {
+        db: db.clone(),
+        config: config.clone(),
+        token_manager: token_manager.clone(),
+        required_role: middleware::Role::User,
+    };
+    let admin_state = state::AppState {
+        db,
         config,
         token_manager,
+        required_role: middleware::Role::Admin,
     };
 
     let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
+    let doc = api::ApiDoc::openapi();
+    let swagger = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", doc);
+    let api_router = api::router().layer(from_fn_with_state(
+        user_state.clone(),
+        middleware::require_role,
+    ));
+    let admin_router = handlers::admin::router(admin_state.clone());
     let router = Router::new()
+        .merge(swagger)
         .route("/", get(handlers::home))
         .route("/projects", get(handlers::projects))
         .route("/projects/{slug}", get(handlers::project_detail))
@@ -92,14 +110,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/blog/{slug}", get(handlers::post_detail))
         .route("/about", get(handlers::about))
         .route("/contact", get(handlers::contact))
-        .nest("/api", api::router())
-        .nest("/admin", handlers::admin::router(state.clone()))
+        .nest("/admin", admin_router)
+        .nest("/api", api_router)
         .nest_service("/static", serve_dir.clone())
         .fallback(handlers::to_404)
-        .layer(from_fn_with_state(state.clone(), middleware::auth))
         .layer(from_fn(middleware::custom_log))
         .layer(TraceLayer::new_for_http())
-        .with_state(state.clone());
+        .with_state(user_state.clone());
 
     let addr: SocketAddr = config_addr.parse().expect("invalid address");
     let listener = TcpListener::bind(addr).await?;

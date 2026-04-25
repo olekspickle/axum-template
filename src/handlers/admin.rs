@@ -9,9 +9,11 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::db::{NewPost, NewProject, NewTeamMember, Post, Project, TeamMember};
-use crate::middleware;
-use crate::state::AppState;
+use crate::{
+    db::{NewPost, NewProject, NewTeamMember, Post, Project, TeamMember},
+    middleware,
+    state::AppState,
+};
 
 pub fn router(state: AppState) -> Router<AppState> {
     Router::<AppState>::new()
@@ -32,7 +34,7 @@ pub fn router(state: AppState) -> Router<AppState> {
         .route("/team", post(admin_create_team_member))
         .route("/team/{id}", delete(admin_delete_team_member))
         .route("/logout", post(admin_logout))
-        .layer(from_fn_with_state(state.clone(), middleware::require_admin))
+        .layer(from_fn_with_state(state, middleware::require_role))
 }
 
 #[derive(Deserialize)]
@@ -70,14 +72,13 @@ pub async fn team_login(
             if let Some(hash) = &member.password_hash {
                 use argon2::{PasswordHash, PasswordVerifier};
                 let parsed_hash = PasswordHash::new(hash);
-                if let Ok(parsed) = parsed_hash {
-                    if argon2::Argon2::default()
+                if let Ok(parsed) = parsed_hash
+                    && argon2::Argon2::default()
                         .verify_password(form.password.as_bytes(), &parsed)
                         .is_ok()
-                    {
-                        let token = state.token_manager.generate_user_token(member.name).await;
-                        return (StatusCode::OK, Json(serde_json::json!({ "token": token })));
-                    }
+                {
+                    let token = state.token_manager.generate_user_token(member.name).await;
+                    return (StatusCode::OK, Json(serde_json::json!({ "token": token })));
                 }
             }
             (

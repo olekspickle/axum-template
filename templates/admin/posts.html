@@ -14,13 +14,13 @@
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
                 </nav>
             </aside>
-            
+
             <main class="flex-1 p-8">
                 <div class="flex justify-between items-center mb-8">
                     <h1 class="text-3xl font-bold">Posts</h1>
                     <a href="/admin/posts/new" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Add New Post</a>
                 </div>
-                
+
                 {% if !posts.is_empty() %}
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <table class="min-w-full">

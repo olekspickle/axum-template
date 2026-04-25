@@ -135,37 +135,17 @@ pub async fn custom_log(req: Request, next: Next) -> Result<Response<Body>, Stat
     Ok(next.run(req).await)
 }
 
-pub async fn auth(State(state): State<AppState>, req: Request, next: Next) -> impl IntoResponse {
+pub async fn require_role(
+    State(state): State<AppState>,
+    req: Request,
+    next: Next,
+) -> impl IntoResponse {
     let auth = state.token_manager.clone();
     let tokens = auth.tokens.read().await;
     if tokens.is_empty() {
         return next.run(req).await.into_response();
     }
     drop(tokens);
-
-    let (parts, body) = req.into_parts();
-
-    let auth_header = parts.headers.get(AUTHORIZATION);
-    if auth.check_header(auth_header).await {
-        let req = axum::extract::Request::from_parts(parts, body);
-        return next.run(req).await.into_response();
-    }
-
-    let bearer_token = parts.headers.get("X-Bearer-Token");
-    if auth.check_header(bearer_token).await {
-        let req = axum::extract::Request::from_parts(parts, body);
-        return next.run(req).await.into_response();
-    }
-
-    (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
-}
-
-pub async fn require_admin(
-    State(state): State<AppState>,
-    req: Request,
-    next: Next,
-) -> impl IntoResponse {
-    let auth = state.token_manager.clone();
 
     let (parts, body) = req.into_parts();
     let token = parts
@@ -181,13 +161,19 @@ pub async fn require_admin(
 
     if let Some(token) = token
         && auth.validate(token).await
-        && auth.is_admin(token).await
     {
-        let req = axum::extract::Request::from_parts(parts, body);
-        return next.run(req).await.into_response();
+        let is_admin = auth.is_admin(token).await;
+        let has_role = match state.required_role {
+            Role::Admin => is_admin,
+            Role::User => true,
+        };
+        if has_role {
+            let req = axum::extract::Request::from_parts(parts, body);
+            return next.run(req).await.into_response();
+        }
     }
 
-    (StatusCode::UNAUTHORIZED, "Admin access required").into_response()
+    (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
 }
 
 pub fn hash_password(password: &str) -> String {

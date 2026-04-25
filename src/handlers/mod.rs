@@ -115,9 +115,6 @@ pub async fn to_404(uri: Uri) -> impl IntoResponse {
     let template = templates::NotFoundTemplate {
         title: "[404]".to_string(),
         uri: uri.to_string(),
-        site_name: "Our Company".to_string(),
-        tagline: "We build amazing things".to_string(),
-        featured_projects: vec![],
     };
     HtmlTemplate(template)
 }
@@ -204,8 +201,5 @@ pub mod templates {
     pub struct NotFoundTemplate {
         pub title: String,
         pub uri: String,
-        pub site_name: String,
-        pub tagline: String,
-        pub featured_projects: Vec<Project>,
     }
 }

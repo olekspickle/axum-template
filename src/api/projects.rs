@@ -49,7 +49,7 @@ impl From<Project> for ProjectResponse {
 
 #[utoipa::path(
     get,
-    path = ENDPOINT,
+    path = "/api/v1/projects",
     responses(
         (status = 200, description = "List of projects", body = Vec<ProjectResponse>),
     )

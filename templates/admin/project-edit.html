@@ -14,29 +14,29 @@
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
                 </nav>
             </aside>
-            
+
             <main class="flex-1 p-8">
                 <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = project %}Edit{% else %}Add{% endif %} Project</h1>
-                
+
                 <form method="POST" class="space-y-6 max-w-2xl">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Title</label>
                         <input type="text" name="title" value="{% if let Some(p) = project %}{{ p.title }}{% endif %}" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Slug</label>
                         <input type="text" name="slug" value="{% if let Some(p) = project %}{{ p.slug }}{% endif %}" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Description</label>
                         <textarea name="description" rows="4" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">{% if let Some(p) = project %}{{ p.description }}{% endif %}</textarea>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Category</label>
                         <select name="category" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
@@ -45,37 +45,37 @@
                             <option value="interactive">Interactive</option>
                         </select>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Thumbnail URL</label>
                         <input type="url" name="thumbnail_url" value="{% if let Some(p) = project %}{{ p.thumbnail_url }}{% endif %}" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Images (comma-separated URLs)</label>
                         <input type="text" name="images" value=""
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Tech Stack (comma-separated)</label>
                         <input type="text" name="tech_stack" value=""
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Demo URL</label>
                         <input type="url" name="demo_url" value=""
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Repository URL</label>
                         <input type="url" name="repo_url" value=""
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
-                    
+
                     <div>
                         <label class="flex items-center">
                             <input type="checkbox" name="featured"
@@ -83,7 +83,7 @@
                             <span class="ml-2 text-sm text-gray-700">Featured</span>
                         </label>
                     </div>
-                    
+
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
                         {% if let Some(p) = project %}Update{% else %}Create{% endif %} Project
                     </button>
