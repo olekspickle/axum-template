@@ -3,6 +3,7 @@
     {% include "head.html" %}
 
     <body>
+        <div id="particles-js"></div>
         {% include "nav.html" %}
         <main>
             <section class="py-16">
@@ -17,11 +18,18 @@
                         <div class="mt-4 flex items-center text-gray-500">
                             <span class="font-medium">{{ post.author }}</span>
                             <span class="mx-2">&bull;</span>
-                            <span>{{ post.created_at }}</span>
+                            <span>{{ post.format_date() }}</span>
                         </div>
+                        {% if !post.tags.is_empty() %}
+                        <div class="mt-4 flex gap-2">
+                            {% for tag in post.tags %}
+                            <span class="text-xs bg-gray-100 px-2 py-1 rounded">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         
                         <div class="mt-8 prose max-w-none">
-{{ content_html }}
+{{ content_html | safe }}
                         </div>
                     </article>
                 </div>

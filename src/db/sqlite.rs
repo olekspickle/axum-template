@@ -210,7 +210,18 @@ impl Db for SqliteDb {
         Ok(projects)
     }
 
-    async fn get_project(&self, slug: &str) -> Result<Option<Project>> {
+    async fn get_project(&self, id: &str) -> Result<Option<Project>> {
+        let row = sqlx::query(
+            "SELECT id, title, slug, description, category, thumbnail_url, images, tech_stack, demo_url, repo_url, featured, created_at, updated_at FROM projects WHERE id = ?1",
+        )
+        .bind(id)
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        Ok(row.map(Self::project_row_to_project))
+    }
+
+    async fn get_project_by_slug(&self, slug: &str) -> Result<Option<Project>> {
         let row = sqlx::query(
             "SELECT id, title, slug, description, category, thumbnail_url, images, tech_stack, demo_url, repo_url, featured, created_at, updated_at FROM projects WHERE slug = ?1",
         )
@@ -331,7 +342,18 @@ impl Db for SqliteDb {
         Ok(posts)
     }
 
-    async fn get_post(&self, slug: &str) -> Result<Option<Post>> {
+    async fn get_post(&self, id: &str) -> Result<Option<Post>> {
+        let row = sqlx::query(
+            "SELECT id, title, slug, content, excerpt, cover_image, tags, author, published, created_at, updated_at FROM posts WHERE id = ?1",
+        )
+        .bind(id)
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        Ok(row.map(Self::post_row_to_post))
+    }
+
+    async fn get_post_by_slug(&self, slug: &str) -> Result<Option<Post>> {
         let row = sqlx::query(
             "SELECT id, title, slug, content, excerpt, cover_image, tags, author, published, created_at, updated_at FROM posts WHERE slug = ?1",
         )
@@ -380,11 +402,10 @@ impl Db for SqliteDb {
 
         let password_hash = if let Some(password) = &m.password {
             let salt = SaltString::generate(&mut OsRng);
-            let hash = Argon2::default()
+            Argon2::default()
                 .hash_password(password.as_bytes(), &salt)
                 .map(|h| h.to_string())
-                .ok();
-            hash
+                .ok()
         } else {
             None
         };
@@ -449,6 +470,15 @@ impl Db for SqliteDb {
     async fn delete_team_member(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM team_members WHERE id = ?1")
             .bind(id)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn update_team_member_password(&self, username: &str, password_hash: &str) -> Result<()> {
+        sqlx::query("UPDATE team_members SET password_hash = ?1 WHERE name = ?2")
+            .bind(password_hash)
+            .bind(username)
             .execute(&*self.pool)
             .await?;
         Ok(())

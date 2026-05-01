@@ -45,11 +45,8 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 space-x-2">
-                                    <a href="/admin/projects/{{ project.id }}" class="text-indigo-600 hover:underline">Edit</a>
-                                    <form method="POST" action="/admin/projects/{{ project.id }}" class="inline">
-                                        <input type="hidden" name="_method" value="DELETE">
-                                        <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this project?')">Delete</button>
-                                    </form>
+                                    <a href="/admin/projects/{{ project.slug }}" class="text-indigo-600 hover:underline">Edit</a>
+                                    <button type="button" onclick="deleteProject('{{ project.id }}')" class="text-red-600 hover:underline">Delete</button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -61,5 +58,7 @@
                 {% endif %}
             </main>
         </div>
+
+        <script src="/static/js/admin.js"></script>
     </body>
 </html>

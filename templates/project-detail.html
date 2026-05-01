@@ -3,12 +3,16 @@
     {% include "head.html" %}
 
     <body>
+        <div id="particles-js"></div>
         {% include "nav.html" %}
         <main>
             <section class="py-16">
                 <div class="container mx-auto max-w-4xl">
                     <h1>{{ project.title }}</h1>
-                    <p>{{ project.description }}</p>
+                    
+                    <div class="prose max-w-none mt-8">
+{{ description_html | safe }}
+                    </div>
                 </div>
             </section>
         </main>

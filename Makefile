@@ -1,4 +1,4 @@
-.PHONY: docs test lint build build-release tag run-local
+.PHONY: docs test lint build build-release tag run-local cert
 
 .ONESHELL: # Use one shell per target
 SHELL := /bin/bash
@@ -6,6 +6,12 @@ SHELL := /bin/bash
 .SHELLFLAGS = -ec
 
 crate=axum-template
+
+cert:
+	openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
+		-keyout key.pem -out cert.pem \
+		-subj "/CN=localhost" \
+		-addext "subjectAltName = DNS:localhost"
 
 docs:
 	cargo docs --open

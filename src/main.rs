@@ -1,129 +1,26 @@
-//! ![axum-template](https://github.com/user-attachments/assets/a16843e7-7537-4c73-a550-52a37b6fbf73)
-//!
-//! ## Overview
-//! Portfolio/blog website template for a company that does software/games/interactive projects
-//!
-//! This template provides:
-//! - [x] Axum server with middleware
-//! - [x] Askama templates
-//! - [x] Containerization (with compose)
-//! - [x] Portfolio projects management
-//! - [x] Blog with markdown support
-//! - [x] Admin panel with authentication
-//! - [x] SQLite backend (default)
-//! - [x] SurrealDB backend (optional, behind feature flag)
-//!
-//! # Running
-//! ```bash
-//! # SQLite3 backend:
-//! make run
-//!
-//! # SurrealDB backend
-//! make surreal
-//! ```
-//!
-//! ## Configuration
-//! Edit `config.toml` to configure:
-//! - Server host/port
-//! - Database path
-//! - Admin credentials (password is argon2 hashed)
-//! - Site name and tagline
-
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{
-    Router,
-    middleware::{from_fn, from_fn_with_state},
-    routing::get,
+use tokio::sync::RwLock;
+
+use axum_template::{
+    app_router,
+    config::Config,
+    db,
+    middleware::{Role, TokenManager},
+    state::AppState,
+    tls,
 };
-use itertools::Itertools;
-use tokio::net::TcpListener;
-use tower_http::{services::ServeDir, trace::TraceLayer};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
-mod api;
-mod config;
-mod db;
-use db::Db;
-mod error;
-mod handlers;
-mod how_to;
-mod middleware;
-mod state;
-
-async fn auth_cleanup(auth: Arc<middleware::TokenManager>) {
+async fn auth_cleanup(auth: Arc<TokenManager>) {
     let mut interval = tokio::time::interval(Duration::from_secs(300));
     loop {
         interval.tick().await;
         auth.cleanup().await;
     }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_init();
-
-    let config = Arc::new(config::Config::load("config.toml")?);
-    let config_addr = config.address();
-
-    let db = db::create_db(&config).await?;
-    db.init().await?;
-
-    let token_manager = Arc::new(middleware::TokenManager::new(
-        config.auth.token_ttl,
-        config.admin_credentials(),
-    ));
-    let auth = token_manager.clone();
-    tokio::spawn(auth_cleanup(auth.clone()));
-
-    let db = Arc::<dyn Db>::from(db);
-    let user_state = state::AppState {
-        db: db.clone(),
-        config: config.clone(),
-        token_manager: token_manager.clone(),
-        required_role: middleware::Role::User,
-    };
-    let admin_state = state::AppState {
-        db,
-        config,
-        token_manager,
-        required_role: middleware::Role::Admin,
-    };
-
-    let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
-    let doc = api::ApiDoc::openapi();
-    let swagger = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", doc);
-    let api_router = api::router().layer(from_fn_with_state(
-        user_state.clone(),
-        middleware::require_role,
-    ));
-    let admin_router = handlers::admin::router(admin_state.clone());
-    let router = Router::new()
-        .merge(swagger)
-        .route("/", get(handlers::home))
-        .route("/projects", get(handlers::projects))
-        .route("/projects/{slug}", get(handlers::project_detail))
-        .route("/blog", get(handlers::blog))
-        .route("/blog/{slug}", get(handlers::post_detail))
-        .route("/about", get(handlers::about))
-        .route("/contact", get(handlers::contact))
-        .nest("/admin", admin_router)
-        .nest("/api", api_router)
-        .nest_service("/static", serve_dir.clone())
-        .fallback(handlers::to_404)
-        .layer(from_fn(middleware::custom_log))
-        .layer(TraceLayer::new_for_http())
-        .with_state(user_state.clone());
-
-    let addr: SocketAddr = config_addr.parse().expect("invalid address");
-    let listener = TcpListener::bind(addr).await?;
-    tracing::info!(address = %addr, "listening");
-
-    axum::serve(listener, router.into_make_service()).await?;
-    Ok(())
 }
 
 fn tracing_init() {
@@ -155,45 +52,63 @@ fn tracing_init() {
         .with(log_level.clone())
         .init();
 
-    let pretty = log_level.to_string().split(',').rev().join("\n");
+    let pretty = log_level
+        .to_string()
+        .split(',')
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n");
     tracing::info!(level=%pretty, "set up logging.");
 }
 
-///// use openssl to generate ssl certs
-///// openssl req -newkey rsa:2048 -new -nodes -keyout key.pem -out csr.pem
-/////
-///// or for dev purposes
-/////
-///// openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem -addext "subjectAltName = DNS:mydnsname.com"
-// fn _load_rustls_config() -> rustls::ServerConfig {
-//     use std::{fs::File, io::BufReader};
-//
-//     use rustls::{pki_types::PrivateKeyDer, ServerConfig};
-//     use rustls_pemfile::{certs, pkcs8_private_keys};
-//
-//     rustls::crypto::aws_lc_rs::default_provider()
-//         .install_default()
-//         .unwrap();
-//
-//     // init server config builder with safe defaults
-//     let config = ServerConfig::builder().with_no_client_auth();
-//
-//     // load TLS key/cert files
-//     let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
-//     let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
-//
-//     // convert files to key/cert objects
-//     let cert_chain = certs(cert_file).collect::<Result<Vec<_>, _>>().unwrap();
-//     let mut keys = pkcs8_private_keys(key_file)
-//         .map(|key| key.map(PrivateKeyDer::Pkcs8))
-//         .collect::<Result<Vec<_>, _>>()
-//         .unwrap();
-//
-//     // exit if no keys could be parsed
-//     if keys.is_empty() {
-//         eprintln!("Could not locate PKCS 8 private keys.");
-//         std::process::exit(1);
-//     }
-//
-//     config.with_single_cert(cert_chain, keys.remove(0)).unwrap()
-// }
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Install ring CryptoProvider for rustls
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("rustls CryptoProvider::install_default");
+
+    tracing_init();
+
+    let config = Arc::new(Config::load("config.toml")?);
+    let config_addr = config.address();
+
+    let db = db::create_db(&config).await?;
+    db.init().await?;
+    let db = Arc::<dyn db::Db>::from(db);
+
+    let token_manager = Arc::new(TokenManager::new(
+        config.auth.token_ttl,
+        config.admin_credentials(),
+    ));
+    let auth = token_manager.clone();
+
+    tokio::spawn(auth_cleanup(auth.clone()));
+
+    let https = Path::new("cert.pem").exists() && Path::new("key.pem").exists();
+
+    let state = AppState {
+        db: db.clone(),
+        config: config.clone(),
+        token_manager: token_manager.clone(),
+        required_role: Role::User,
+        rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+        https,
+    };
+
+    let router = app_router(state);
+    let addr: SocketAddr = config_addr.parse().expect("invalid address");
+
+    if https {
+        tls::run_with_tls(addr, router).await?;
+    } else {
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+        tracing::info!(address = %addr, "listening (HTTP)");
+        axum::serve(
+            listener,
+            router.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await?;
+    }
+    Ok(())
+}

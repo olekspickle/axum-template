@@ -18,31 +18,37 @@
             <main class="flex-1 p-8">
                 <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = project %}Edit{% else %}Add{% endif %} Project</h1>
 
-                <form method="POST" class="space-y-6 max-w-2xl">
+                <form id="project-form" class="space-y-6 max-w-2xl">
+                    {% if let Some(p) = project %}
+                    <input type="hidden" name="id" value="{{ p.id }}">
+                    {% endif %}
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Title</label>
-                        <input type="text" name="title" value="{% if let Some(p) = project %}{{ p.title }}{% endif %}" required
+                        <input type="text" name="title" id="title-input" value="{% if let Some(p) = project %}{{ p.title }}{% endif %}" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Slug</label>
-                        <input type="text" name="slug" value="{% if let Some(p) = project %}{{ p.slug }}{% endif %}" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <input type="text" name="slug" id="slug-input" value="{% if let Some(p) = project %}{{ p.slug }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-400">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea name="description" rows="4" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">{% if let Some(p) = project %}{{ p.description }}{% endif %}</textarea>
+                        <div id="description-wrapper" class="relative">
+                            <textarea name="description" id="description-input" rows="4" required
+                                class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">{% if let Some(p) = project %}{{ p.description }}{% endif %}</textarea>
+                        </div>
+                        <div id="upload-status" class="mt-2 text-sm text-gray-500"></div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Category</label>
                         <select name="category" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <option value="software">Software</option>
-                            <option value="game">Game</option>
-                            <option value="interactive">Interactive</option>
+                            <option value="software" {% if let Some(p) = project %}{% if p.category == "software" %}selected{% endif %}{% endif %}>Software</option>
+                            <option value="game" {% if let Some(p) = project %}{% if p.category == "game" %}selected{% endif %}{% endif %}>Game</option>
+                            <option value="interactive" {% if let Some(p) = project %}{% if p.category == "interactive" %}selected{% endif %}{% endif %}>Interactive</option>
                         </select>
                     </div>
 
@@ -54,13 +60,13 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Images (comma-separated URLs)</label>
-                        <input type="text" name="images" value=""
+                        <input type="text" name="images" value="{% if let Some(p) = project %}{% for img in p.images %}{% if !loop.first %}, {% endif %}{{ img }}{% endfor %}{% endif %}"
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Tech Stack (comma-separated)</label>
-                        <input type="text" name="tech_stack" value=""
+                        <input type="text" name="tech_stack" value="{% if let Some(p) = project %}{% for tech in p.tech_stack %}{% if !loop.first %}, {% endif %}{{ tech }}{% endfor %}{% endif %}"
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
@@ -79,7 +85,8 @@
                     <div>
                         <label class="flex items-center">
                             <input type="checkbox" name="featured"
-                                class="rounded border-gray-300 text-indigo-600">
+                                class="rounded border-gray-300 text-indigo-600"
+                                {% if let Some(p) = project %}{% if p.featured %}checked{% endif %}{% endif %}>
                             <span class="ml-2 text-sm text-gray-700">Featured</span>
                         </label>
                     </div>
@@ -90,5 +97,8 @@
                 </form>
             </main>
         </div>
+<script src="/static/js/slug-generator.js"></script>
+
+        <script src="/static/js/admin.js"></script>
     </body>
 </html>

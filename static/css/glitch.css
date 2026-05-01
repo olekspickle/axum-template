@@ -1,12 +1,11 @@
 
 /* 404 glitch */
-@import url('https://fonts.googleapis.com/css?family=Fira+Mono:400');
 
 .oops {
     color: #131313;
     font-size: 96px;
     margin: 0;
-    font-family: 'Fira Mono', monospace;
+    font-family: 'iA Writer Mono', monospace;
     letter-spacing: -7px;
     animation: glitch 1s linear infinite;
 }

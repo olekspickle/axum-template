@@ -1,5 +1,5 @@
 <sitemapindex>
     <sitemap>
-        <loc>https://olekspickle.github.com/axum-template/sitemap-0.xml</loc>
-        </sitemap>
-    </sitemapindex>
+        <loc>http://localhost:7777/sitemap-0.xml</loc>
+    </sitemap>
+</sitemapindex>

@@ -39,12 +39,14 @@ pub async fn project_detail(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let project = state.db.get_project(&slug).await.ok().flatten();
+    let project = state.db.get_project_by_slug(&slug).await.ok().flatten();
+    let description_html = project.as_ref().map(|p| render_markdown(&p.description));
 
     if let Some(project) = project {
         let template = templates::ProjectDetail {
             title: project.title.clone(),
             project,
+            description_html: description_html.unwrap_or_default(),
         };
         return HtmlTemplate(template).into_response();
     }
@@ -65,7 +67,7 @@ pub async fn post_detail(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let post = state.db.get_post(&slug).await.ok().flatten();
+    let post = state.db.get_post_by_slug(&slug).await.ok().flatten();
     let content_html = post.as_ref().map(|p| render_markdown(&p.content));
 
     if let Some(post) = post {
@@ -99,13 +101,15 @@ pub async fn contact(State(_state): State<AppState>) -> impl IntoResponse {
 }
 
 fn render_markdown(content: &str) -> String {
+    let content = content.replace("](Video:", "](video:");
+
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
 
-    let parser = Parser::new_ext(content, options);
+    let parser = Parser::new_ext(&content, options);
     let mut html_output = String::new();
     html::push_html(&mut html_output, parser);
     html_output
@@ -164,6 +168,7 @@ pub mod templates {
     pub struct ProjectDetail {
         pub title: String,
         pub project: Project,
+        pub description_html: String,
     }
 
     #[derive(Template)]

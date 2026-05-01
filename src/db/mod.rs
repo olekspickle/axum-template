@@ -29,7 +29,8 @@ pub trait Db: Send + Sync {
 
     async fn create_project(&self, project: NewProject) -> Result<Project>;
     async fn get_projects(&self) -> Result<Vec<Project>>;
-    async fn get_project(&self, slug: &str) -> Result<Option<Project>>;
+    async fn get_project(&self, id: &str) -> Result<Option<Project>>;
+    async fn get_project_by_slug(&self, slug: &str) -> Result<Option<Project>>;
     async fn get_featured_projects(&self) -> Result<Vec<Project>>;
     async fn update_project(&self, id: &str, project: NewProject) -> Result<()>;
     async fn delete_project(&self, id: &str) -> Result<()>;
@@ -37,7 +38,8 @@ pub trait Db: Send + Sync {
     async fn create_post(&self, post: NewPost) -> Result<Post>;
     async fn get_posts(&self) -> Result<Vec<Post>>;
     async fn get_published_posts(&self) -> Result<Vec<Post>>;
-    async fn get_post(&self, slug: &str) -> Result<Option<Post>>;
+    async fn get_post(&self, id: &str) -> Result<Option<Post>>;
+    async fn get_post_by_slug(&self, slug: &str) -> Result<Option<Post>>;
     async fn update_post(&self, id: &str, post: NewPost) -> Result<()>;
     async fn delete_post(&self, id: &str) -> Result<()>;
 
@@ -45,4 +47,5 @@ pub trait Db: Send + Sync {
     async fn get_team_members(&self) -> Result<Vec<TeamMember>>;
     async fn get_team_member(&self, name: &str) -> Result<Option<TeamMember>>;
     async fn delete_team_member(&self, id: &str) -> Result<()>;
+    async fn update_team_member_password(&self, username: &str, password_hash: &str) -> Result<()>;
 }

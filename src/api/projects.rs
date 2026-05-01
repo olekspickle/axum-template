@@ -1,18 +1,14 @@
-use axum::{Router, extract::State, response::Json, routing::get};
+use axum::{
+    extract::{Path, State},
+    response::Json,
+};
 use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::ToSchema;
 
-use crate::db::Project;
-use crate::state::AppState;
-
-pub const ENDPOINT: &str = "/api/v1/projects";
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(list_projects, get_project),
-    components(schemas(ProjectResponse))
-)]
-pub struct ProjectsApi;
+use crate::{
+    db::{NewProject, Project},
+    state::AppState,
+};
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct ProjectResponse {
@@ -61,7 +57,7 @@ pub async fn list_projects(State(state): State<AppState>) -> Json<Vec<ProjectRes
 
 #[utoipa::path(
     get,
-    path = "/api/v1/projects/{slug}",
+    path = "/api/v1/projects/{id}",
     responses(
         (status = 200, description = "Project details", body = ProjectResponse),
         (status = 404, description = "Project not found"),
@@ -69,11 +65,11 @@ pub async fn list_projects(State(state): State<AppState>) -> Json<Vec<ProjectRes
 )]
 pub async fn get_project(
     State(state): State<AppState>,
-    axum::extract::Path(slug): axum::extract::Path<String>,
+    axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Json<Option<ProjectResponse>> {
     let project = state
         .db
-        .get_project(&slug)
+        .get_project(&id)
         .await
         .ok()
         .flatten()
@@ -81,12 +77,57 @@ pub async fn get_project(
     Json(project)
 }
 
-pub fn router() -> Router<AppState> {
-    Router::<AppState>::new()
-        .route(ENDPOINT, get(list_projects))
-        .route("/api/v1/projects/:slug", get(get_project))
-        .route(
-            "/openapi.json",
-            get(|| async { axum::Json(ProjectsApi::openapi()) }),
-        )
+#[utoipa::path(
+    post,
+    path = "/api/v1/projects",
+    request_body = NewProject,
+    responses(
+        (status = 201, description = "Project created"),
+        (status = 400, description = "Invalid request"),
+    )
+)]
+pub async fn create_project(
+    State(state): State<AppState>,
+    Json(form): Json<NewProject>,
+) -> Json<serde_json::Value> {
+    match state.db.create_project(form).await {
+        Ok(id) => Json(serde_json::json!({ "id": id })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/projects/{id}",
+    request_body = NewProject,
+    responses(
+        (status = 200, description = "Project updated"),
+        (status = 404, description = "Project not found"),
+    )
+)]
+pub async fn update_project(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(form): Json<NewProject>,
+) -> Json<serde_json::Value> {
+    match state.db.update_project(&id, form).await {
+        Ok(_) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/projects/{id}",
+    responses(
+        (status = 200, description = "Project deleted"),
+        (status = 404, description = "Project not found"),
+    )
+)]
+pub async fn delete_project(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    state.db.delete_project(&id).await.ok();
+    Json(serde_json::json!({ "success": true }))
 }

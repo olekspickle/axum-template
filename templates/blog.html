@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
     {% include "head.html" %}
+
     <body>
+        <div id="particles-js"></div>
         {% include "nav.html" %}
 
         <main>
@@ -11,17 +13,17 @@
                     {% if !posts.is_empty() %}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {% for post in posts %}
-                        <a href="/blog/{{ post.slug }}" class="block">
+                        <a href="/blog/{{ post.slug }}" class="block group">
                             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition">
                                 <img src="{{ post.cover_image }}" alt="{{ post.title }}" class="w-full h-48 object-cover">
                                 <div class="p-6">
-                                    <h3 class="text-xl font-bold">{{ post.title }}</h3>
-                                    <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt }}</p>
+                                    <h3 class="text-xl font-bold magic-text">{{ post.title }}</h3>
+                                    <p class="text-gray-600 mt-2 line-clamp-3 magic-text">{{ post.excerpt }}</p>
                                     <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
                                         <div>
                                             <span class="font-medium">{{ post.author }}</span>
                                             <span class="mx-2">&bull;</span>
-                                            <span>{{ post.created_at }}</span>
+                                            <span>{{ post.format_date() }}</span>
                                         </div>
                                     </div>
                                     {% for tag in post.tags %}

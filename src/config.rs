@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -27,7 +28,8 @@ pub struct AuthParams {
     #[serde(default = "default_u64::<3600>")]
     pub token_ttl: u64,
     pub admin_username: String,
-    pub admin_password: String,
+    #[serde(skip_serializing)]
+    pub admin_password: Option<String>,
 }
 
 #[serde_inline_default]
@@ -69,7 +71,19 @@ pub struct SiteParams {
 impl Config {
     pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let config_str = fs::read_to_string(path.as_ref())?;
-        let config: Config = toml::from_str(&config_str)?;
+        let mut config: Config = toml::from_str(&config_str)?;
+
+        // Admin password from env var (preferred) or config file (fallback for dev)
+        config.auth.admin_password = env::var("ADMIN_PASSWORD")
+            .ok()
+            .or(config.auth.admin_password);
+
+        if config.auth.admin_password.is_none() {
+            anyhow::bail!(
+                "ADMIN_PASSWORD env var must be set (or set admin_password in config.toml for dev)"
+            );
+        }
+
         Ok(config)
     }
 
@@ -80,7 +94,7 @@ impl Config {
     pub fn admin_credentials(&self) -> HashMap<String, String> {
         [(
             self.auth.admin_username.clone(),
-            hash_password(&self.auth.admin_password),
+            hash_password(self.auth.admin_password.as_deref().unwrap_or("")),
         )]
         .into_iter()
         .collect()

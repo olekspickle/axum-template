@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
 pub struct NewProject {
     pub title: String,
     pub slug: String,
@@ -32,7 +32,21 @@ pub struct Project {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+impl Project {
+    pub fn created_at_formatted(&self) -> String {
+        if self.created_at.len() >= 10 {
+            return format!(
+                "{}-{}-{}",
+                &self.created_at[8..10],
+                &self.created_at[5..7],
+                &self.created_at[0..4]
+            );
+        }
+        self.created_at.clone()
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
 pub struct NewPost {
     pub title: String,
     pub slug: String,
@@ -57,6 +71,21 @@ pub struct Post {
     pub published: bool,
     pub created_at: String,
     pub updated_at: String,
+}
+
+impl Post {
+    pub fn format_date(&self) -> String {
+        if self.created_at.len() >= 10 {
+            format!(
+                "{}-{}-{}",
+                &self.created_at[8..10],
+                &self.created_at[5..7],
+                &self.created_at[0..4]
+            )
+        } else {
+            self.created_at.clone()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

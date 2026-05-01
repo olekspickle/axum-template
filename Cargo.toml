@@ -18,14 +18,19 @@ surreal = ["dep:surrealdb"]
 [dependencies]
 anyhow = "1"
 argon2 = { version = "0.5", features = ["rand"] }
-askama = "0.12"
-axum = { version = "0.8", features = ["macros"] }
+askama = "0.15"
+axum = { version = "0.8", features = ["macros", "multipart"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+lazy_static = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
 displaydoc = "0.2.5"
 hyper = "1"
+hyper-util = { version = "0.1", features = ["tokio", "server"] }
 http = "1.1.0"
-pulldown-cmark = "0.10"
+pulldown-cmark = "0.13"
 rustls = "0.23.15"
+rustls-pemfile = "2.1"
+tokio-rustls = { version = "0.26", features = ["ring"] }
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -35,7 +40,7 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 toml = "0.8"
-tower-http = { version = "0.5", features = ["fs", "trace"] }
+tower-http = { version = "0.5", features = ["fs", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["aes-crypto"] }
@@ -45,4 +50,11 @@ utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 utoipa-axum = "0.2.0"
 itertools = "0.14.0"
+sha2 = "0.11.0"
+hex = "0.4.3"
+
+[dev-dependencies]
+tower = "0.5"
+http-body-util = "0.1"
+serde_json = "1"
 

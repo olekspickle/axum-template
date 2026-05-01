@@ -129,7 +129,19 @@ impl Db for SurrealDb {
         Ok(projects)
     }
 
-    async fn get_project(&self, slug: &str) -> Result<Option<Project>> {
+    async fn get_project(&self, id: &str) -> Result<Option<Project>> {
+        let id = id.to_owned();
+        let projects: Vec<Project> = self
+            .db
+            .query("SELECT * FROM project WHERE id = $id")
+            .bind(("id", id))
+            .await?
+            .take(0)?;
+
+        Ok(projects.into_iter().next())
+    }
+
+    async fn get_project_by_slug(&self, slug: &str) -> Result<Option<Project>> {
         let slug = slug.to_owned();
         let projects: Vec<Project> = self
             .db
@@ -216,7 +228,20 @@ impl Db for SurrealDb {
         Ok(posts)
     }
 
-    async fn get_post(&self, slug: &str) -> Result<Option<Post>> {
+    async fn get_post(&self, id: &str) -> Result<Option<Post>> {
+        let id = id.to_owned();
+        let posts: Vec<Post> = self
+            .db
+            .clone()
+            .query("SELECT * FROM post WHERE id = $id")
+            .bind(("id", id))
+            .await?
+            .take(0)?;
+
+        Ok(posts.into_iter().next())
+    }
+
+    async fn get_post_by_slug(&self, slug: &str) -> Result<Option<Post>> {
         let slug = slug.to_owned();
         let posts: Vec<Post> = self
             .db
@@ -307,6 +332,17 @@ impl Db for SurrealDb {
 
     async fn delete_team_member(&self, id: &str) -> Result<()> {
         let _member: Option<TeamMember> = self.db.delete(("team_member", id)).await?;
+        Ok(())
+    }
+
+    async fn update_team_member_password(&self, username: &str, password_hash: &str) -> Result<()> {
+        let _: Option<TeamMember> = self
+            .db
+            .query("UPDATE team_member SET password_hash = $hash WHERE name = $name")
+            .bind(("hash", password_hash))
+            .bind(("name", username))
+            .await?
+            .take(0)?;
         Ok(())
     }
 }

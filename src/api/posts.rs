@@ -1,15 +1,14 @@
-use axum::{Router, extract::State, response::Json, routing::get};
+use axum::{
+    extract::{Path, State},
+    response::Json,
+};
 use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::ToSchema;
 
-use crate::db::Post;
-use crate::state::AppState;
-
-pub const ENDPOINT: &str = "/api/v1/posts";
-
-#[derive(OpenApi)]
-#[openapi(paths(list_posts, get_post), components(schemas(PostResponse)))]
-pub struct PostsApi;
+use crate::{
+    db::{NewPost, Post},
+    state::AppState,
+};
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct PostResponse {
@@ -52,7 +51,7 @@ pub async fn list_posts(State(state): State<AppState>) -> Json<Vec<PostResponse>
 
 #[utoipa::path(
     get,
-    path = "/api/v1/posts/{slug}",
+    path = "/api/v1/posts/{id}",
     responses(
         (status = 200, description = "Post details", body = PostResponse),
         (status = 404, description = "Post not found"),
@@ -60,20 +59,63 @@ pub async fn list_posts(State(state): State<AppState>) -> Json<Vec<PostResponse>
 )]
 pub async fn get_post(
     State(state): State<AppState>,
-    axum::extract::Path(slug): axum::extract::Path<String>,
+    axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Json<Option<PostResponse>> {
-    let post = state
-        .db
-        .get_post(&slug)
-        .await
-        .ok()
-        .flatten()
-        .map(Into::into);
+    let post = state.db.get_post(&id).await.ok().flatten().map(Into::into);
     Json(post)
 }
 
-pub fn router() -> Router<AppState> {
-    Router::<AppState>::new()
-        .route(ENDPOINT, get(list_posts))
-        .route("/api/v1/posts/:slug", get(get_post))
+#[utoipa::path(
+    post,
+    path = "/api/v1/posts",
+    request_body = NewPost,
+    responses(
+        (status = 201, description = "Post created"),
+        (status = 400, description = "Invalid request"),
+    )
+)]
+pub async fn create_post(
+    State(state): State<AppState>,
+    Json(form): Json<NewPost>,
+) -> Json<serde_json::Value> {
+    match state.db.create_post(form).await {
+        Ok(id) => Json(serde_json::json!({ "id": id })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/posts/{id}",
+    request_body = NewPost,
+    responses(
+        (status = 200, description = "Post updated"),
+        (status = 404, description = "Post not found"),
+    )
+)]
+pub async fn update_post(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(form): Json<NewPost>,
+) -> Json<serde_json::Value> {
+    match state.db.update_post(&id, form).await {
+        Ok(_) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/posts/{id}",
+    responses(
+        (status = 200, description = "Post deleted"),
+        (status = 404, description = "Post not found"),
+    )
+)]
+pub async fn delete_post(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    state.db.delete_post(&id).await.ok();
+    Json(serde_json::json!({ "success": true }))
 }

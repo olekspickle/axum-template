@@ -14,10 +14,27 @@
     --yellow: #e9bc3f;
 }
 
+html {
+    min-height: 100%;
+}
+
 body {
     margin: 0;
     padding: 0;
-    font-family: iA Writer Mono,monospace
+    font-family: 'iA Writer Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body > main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+body > main section {
+    flex: 1;
 }
 
 /*main {*/
@@ -54,11 +71,11 @@ canvas {
 }
 
 @keyframes rotate-gradient {
-to {
-    transform: rotate(360deg)
-}
-}
+    to {
+        transform: rotate(360deg)
+    }
 
+}
 a {
     text-decoration-thickness: .3ex;
     text-underline-offset: .3ex;
@@ -66,15 +83,12 @@ a {
 
 a:hover {
     font-weight: bolder;
-    text-decoration: underline;
 }
 
 footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
     width: 100%;
     text-align: center;
+    padding: 1.25rem 0;
 }
 
 
@@ -85,5 +99,30 @@ footer a {
     display: block;
     margin: 0;
     padding: 1.25rem 0;
+}
+
+a:hover .magic-text {
+    background: linear-gradient(
+        to right,
+        var(--blue) 0%,
+        var(--green) 16%,
+        var(--yellow) 32%,
+        var(--pink) 48%,
+        var(--red) 64%,
+        var(--blue) 80%,
+        var(--green) 100%
+    );
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-position: 100% 0;
+    animation: textflow 8s linear infinite;
+}
+
+@keyframes textflow {
+    to {
+        background-position: -200% center;
+    }
 }
 

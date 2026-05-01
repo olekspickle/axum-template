@@ -18,29 +18,36 @@
             <main class="flex-1 p-8">
                 <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = post %}Edit{% else %}Add{% endif %} Post</h1>
 
-                <form method="POST" class="space-y-6 max-w-2xl">
+                <form id="post-form" class="space-y-6 max-w-2xl">
+                    {% if let Some(p) = post %}
+                    <input type="hidden" name="id" value="{{ p.id }}">
+                    {% endif %}
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Title</label>
-                        <input type="text" name="title" value="{% if let Some(p) = post %}{{ p.title }}{% endif %}" required
+                        <input type="text" name="title" id="title-input" value="{% if let Some(p) = post %}{{ p.title }}{% endif %}" required
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Slug</label>
-                        <input type="text" name="slug" value="{% if let Some(p) = post %}{{ p.slug }}{% endif %}" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <input type="text" name="slug" id="slug-input" value="{% if let Some(p) = post %}{{ p.slug }}{% endif %}" required
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-400">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Content (Markdown)</label>
-                        <textarea name="content" rows="12" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg font-mono">{% if let Some(p) = post %}{{ p.content }}{% endif %}</textarea>
+                        <div id="content-wrapper" class="relative">
+                            <textarea name="content" id="content-input" rows="12" required
+                                class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg font-mono">{% if let Some(p) = post %}{{ p.content }}{% endif %}</textarea>
+                        </div>
+                        <div id="upload-status" class="mt-2 text-sm text-gray-500"></div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Excerpt</label>
-                        <textarea name="excerpt" rows="3" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">{% if let Some(p) = post %}{{ p.excerpt }}{% endif %}</textarea>
+                        <input type="text" name="excerpt" id="excerpt-input"
+                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-400 truncate"
+                            value="{% if let Some(p) = post %}{{ p.excerpt }}{% endif %}">
                     </div>
 
                     <div>
@@ -51,7 +58,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
-                        <input type="text" name="tags" value=""
+                        <input type="text" name="tags" value="{% if let Some(p) = post %}{% for tag in p.tags %}{% if !loop.first %}, {% endif %}{{ tag }}{% endfor %}{% endif %}"
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
@@ -64,7 +71,8 @@
                     <div>
                         <label class="flex items-center">
                             <input type="checkbox" name="published"
-                                class="rounded border-gray-300 text-indigo-600">
+                                class="rounded border-gray-300 text-indigo-600"
+                                {% if let Some(p) = post %}{% if p.published %}checked{% endif %}{% endif %}>
                             <span class="ml-2 text-sm text-gray-700">Published</span>
                         </label>
                     </div>
@@ -75,5 +83,8 @@
                 </form>
             </main>
         </div>
+
+        <script src="/static/js/admin.js"></script>
+        <script src="/static/js/slug-generator.js"></script>
     </body>
 </html>
