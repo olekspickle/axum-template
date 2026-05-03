@@ -53,7 +53,7 @@ jobs:
       - name: Bundle release
         run: tar -czf ${{ env.pkg_name }}_linux.tar.gz ${{ env.pkg_name }}
       - name: Upload package to workflow artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.pkg_name }}_linux.tar.gz
           path: ${{ env.pkg_name }}_linux.tar.gz
@@ -80,7 +80,7 @@ jobs:
       - name: Bundle release
         run: Compress-Archive -Path ${{ env.pkg_name }}.exe -DestinationPath ${{ env.pkg_name }}_windows.zip
       - name: Upload package to workflow artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.pkg_name }}_windows.zip
           path: ${{ env.pkg_name }}_windows.zip
