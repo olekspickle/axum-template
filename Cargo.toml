@@ -18,7 +18,7 @@ surreal = ["dep:surrealdb"]
 [dependencies]
 anyhow = "1"
 argon2 = { version = "0.5", features = ["rand"] }
-askama = "0.15"
+askama = "0.16"
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 lazy_static = "1.5"
