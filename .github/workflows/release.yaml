@@ -99,7 +99,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
       - name: Upload Linux release
         uses: svenstaro/upload-release-action@master
         with:
