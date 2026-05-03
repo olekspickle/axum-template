@@ -553,7 +553,7 @@ dependencies = [
  "itertools 0.14.0",
  "lazy_static",
  "pulldown-cmark",
- "rand 0.8.6",
+ "rand 0.9.4",
  "rustls",
  "rustls-pemfile",
  "serde",

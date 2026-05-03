@@ -31,7 +31,7 @@ pulldown-cmark = "0.13"
 rustls = "0.23.15"
 rustls-pemfile = "2.1"
 tokio-rustls = { version = "0.26", features = ["ring"] }
-rand = "0.8"
+rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_default_utils = {version =  "0.3.1", features = ["inline"] }
