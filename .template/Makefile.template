@@ -21,6 +21,9 @@ lint:
 	cargo fmt --all -- --check
 	cargo machete
 
+test:
+	cargo test
+
 pack:
 	# TODO: query crate name with
 	# cargo pkgid | rev | cut -d'/' -f1 | rev | sed 's/#.*//'
