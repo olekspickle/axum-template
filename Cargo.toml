@@ -39,7 +39,7 @@ surrealdb = { version = "2", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"], optional = true }
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-toml = "0.8"
+toml = "1.1"
 tower-http = { version = "0.5", features = ["fs", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
