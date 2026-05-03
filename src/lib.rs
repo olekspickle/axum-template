@@ -23,6 +23,11 @@
 //! - [x] Password reset flow
 //! - [x] Remember me checkbox with longer token TTL
 //!
+//! ## Quick start
+//! Install [cargo-generate] and run:
+//! ```bash
+//! cargo generate olekspickle/axum-template -n my-project
+//! ```
 //!
 //! # Running
 //! ```bash
@@ -41,13 +46,14 @@
 //! - Admin credentials (password is argon2 hashed)
 //! - Site name and tagline
 //!
-//!
 //! ### Afterthoughts and issues
 //! I found axum to be the most ergonomic web framework out there, and while there might be not
 //! enough examples at the moment, it is quite a breeze to use
 //! - static files was sure one noticeable pain in the rear to figure out
 //! - surrealdb sure adds complexity, I'm adding it under a feature because sqlite integration is
 //!   so much less crates to compile(190+ vs 500+)
+//!
+//! [cargo-generate]: https://github.com/cargo-generate/cargo-generate
 //!
 
 pub mod api;

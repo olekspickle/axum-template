@@ -1,6 +1,17 @@
 # {{project-name}}
 
 ![{{project-name}} demo](https://github.com/user-attachments/assets/a16843e7-7537-4c73-a550-52a37b6fbf73)
+
+This project was generated using the [Axum Template](https://github.com/olekspickle/axum-template).
+
+## Quick start
+Install [cargo-generate] and run:
+```bash
+cargo generate olekspickle/axum-template -n my-project
+```
+
+[cargo-generate]: https://github.com/cargo-generate/cargo-generate
+
 Axum Template - Portfolio/blog website template
 
 ### Overview
