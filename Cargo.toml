@@ -20,7 +20,7 @@ anyhow = "1"
 argon2 = { version = "0.5", features = ["rand"] }
 askama = "0.15"
 axum = { version = "0.8", features = ["macros", "multipart"] }
-axum-extra = { version = "0.10", features = ["cookie"] }
+axum-extra = { version = "0.12", features = ["cookie"] }
 lazy_static = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
 displaydoc = "0.2.5"
