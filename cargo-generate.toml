@@ -1,0 +1,13 @@
+[template]
+cargo_generate_version = "0.23"
+include = ["**/*.template", ".template/**/*"]
+ignore = [
+    "target",
+    "Cargo.lock",
+    "*.sqlite3",
+    "posts.db",
+    ".template",
+]
+
+[hooks]
+post = ["post-generate.rhai"]
