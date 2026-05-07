@@ -10,9 +10,10 @@
 const FG_COLOR = "#000000";
 const BG_COLOR = "#ffffff";
 const OTHER_COLOR = "#ff0000";
-const N = 100;
+const N = 50;
 
 /* ---- particles.js config ---- */
+document.addEventListener("DOMContentLoaded", function () {
 particlesJS("particles-js", {
   "particles": {
     "number": {
@@ -83,7 +84,7 @@ particlesJS("particles-js", {
     }
   },
   "interactivity": {
-    "detect_on": "canvas",
+    "detect_on": "window",
     "events": {
       "onhover": {
         "enable": true,
@@ -122,5 +123,6 @@ particlesJS("particles-js", {
     }
   },
   "retina_detect": true
+});
 });
 

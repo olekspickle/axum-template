@@ -80,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let token_manager = Arc::new(TokenManager::new(
         config.auth.token_ttl,
         config.admin_credentials(),
+        Some(db.clone()),
     ));
     let auth = token_manager.clone();
 
@@ -101,14 +102,16 @@ async fn main() -> anyhow::Result<()> {
 
     if https {
         tls::run_with_tls(addr, router).await?;
-    } else {
-        let listener = tokio::net::TcpListener::bind(addr).await?;
-        tracing::info!(address = %addr, "listening (HTTP)");
-        axum::serve(
-            listener,
-            router.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await?;
+        return Ok(());
     }
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    tracing::info!(address = %addr, "listening (HTTP)");
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
+
     Ok(())
 }

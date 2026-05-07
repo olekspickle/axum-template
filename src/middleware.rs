@@ -3,26 +3,30 @@
 //! You can do whatever you want with incoming requests before they reach handles
 //!
 
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use std::{collections::HashMap, str::FromStr};
 
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{Response, StatusCode, header::AUTHORIZATION},
+    http::{Extensions, Response, StatusCode, header::AUTHORIZATION},
     middleware::Next,
     response::{IntoResponse, Redirect},
 };
+use chrono::{DateTime, Utc};
+use strum::{AsRefStr, EnumString};
 
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::db::Db;
 use crate::state::AppState;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, EnumString, AsRefStr)]
 pub enum Role {
+    #[default]
     User,
     Editor,
     Admin,
@@ -32,14 +36,14 @@ pub enum Role {
 pub struct TokenData {
     pub username: String,
     pub role: Role,
-    pub created_at: Instant,
-    pub expiry: Instant,
+    pub created_at: DateTime<Utc>,
+    pub expiry: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ResetTokenData {
     pub username: String,
-    pub expiry: Instant,
+    pub expiry: DateTime<Utc>,
 }
 
 pub struct TokenManager {
@@ -47,15 +51,21 @@ pub struct TokenManager {
     reset_tokens: Arc<RwLock<HashMap<String, ResetTokenData>>>,
     ttl: Duration,
     credentials: HashMap<String, String>,
+    db: Option<Arc<dyn Db>>,
 }
 
 impl TokenManager {
-    pub fn new(ttl_secs: u64, credentials: HashMap<String, String>) -> Self {
+    pub fn new(
+        ttl_secs: u64,
+        credentials: HashMap<String, String>,
+        db: Option<Arc<dyn Db>>,
+    ) -> Self {
         Self {
             tokens: Arc::new(RwLock::new(HashMap::new())),
             reset_tokens: Arc::new(RwLock::new(HashMap::new())),
             ttl: Duration::from_secs(ttl_secs),
             credentials,
+            db,
         }
     }
 
@@ -88,29 +98,67 @@ impl TokenManager {
         self.generate_with_metadata(username, role, long).await
     }
 
-    pub async fn generate_with_metadata(&self, username: String, role: Role, long: bool) -> String {
+    async fn generate_with_metadata(&self, username: String, role: Role, long: bool) -> String {
         let token = Uuid::new_v4().to_string();
         let token_for_return = token.clone();
-        let now = Instant::now();
+        let now = Utc::now();
         let ttl = if long { self.long_ttl() } else { self.ttl };
+        let expiry = now + chrono::Duration::from_std(ttl).unwrap_or_default();
         let data = TokenData {
-            username,
-            role,
+            username: username.clone(),
+            role: role.clone(),
             created_at: now,
-            expiry: now + ttl,
+            expiry,
         };
-        self.tokens.write().await.insert(token, data);
+        self.tokens.write().await.insert(token.clone(), data);
+
+        if let Some(db) = &self.db {
+            let _ = db
+                .save_token(
+                    &token,
+                    &username,
+                    role.as_ref(),
+                    &now.to_rfc3339(),
+                    &expiry.to_rfc3339(),
+                )
+                .await;
+        }
+
         token_for_return
     }
 
     pub async fn validate(&self, token: &str) -> bool {
-        let mut tokens = self.tokens.write().await;
-        if let Some(data) = tokens.get(token)
-            && Instant::now() < data.expiry
+        // scope to drop guard faster
         {
-            return true;
+            let tokens = self.tokens.read().await;
+            if let Some(data) = tokens.get(token) {
+                return Utc::now() < data.expiry;
+            }
         }
-        tokens.remove(token);
+
+        if let Some(db) = &self.db
+            && let Ok(Some((username, role_str, created_at, expiry))) = db.get_token(token).await
+            && let (Ok(expiry_dt), Ok(created_dt)) = (
+                expiry.parse::<DateTime<Utc>>(),
+                created_at.parse::<DateTime<Utc>>(),
+            )
+        {
+            if Utc::now() < expiry_dt {
+                self.tokens.write().await.insert(
+                    token.to_string(),
+                    TokenData {
+                        username,
+                        expiry: expiry_dt,
+                        created_at: created_dt,
+                        role: Role::from_str(&role_str).unwrap_or_default(),
+                    },
+                );
+                return true;
+            } else {
+                let _ = db.delete_token(token).await;
+            }
+        }
+
         false
     }
 
@@ -130,9 +178,15 @@ impl TokenManager {
     }
 
     pub async fn cleanup(&self) {
-        let now = Instant::now();
-        let mut tokens = self.tokens.write().await;
-        tokens.retain(|_, data| now < data.expiry);
+        let now = Utc::now();
+        self.tokens
+            .write()
+            .await
+            .retain(|_, data| now < data.expiry);
+
+        if let Some(db) = &self.db {
+            let _ = db.cleanup_expired_tokens(&now.to_rfc3339()).await;
+        }
     }
 
     pub async fn check_header(&self, token: Option<&hyper::header::HeaderValue>) -> bool {
@@ -146,6 +200,9 @@ impl TokenManager {
 
     pub async fn invalidate(&self, token: &str) {
         self.tokens.write().await.remove(token);
+        if let Some(db) = &self.db {
+            let _ = db.delete_token(token).await;
+        }
     }
 
     /// Generate a password reset token (valid 1 hour)
@@ -153,7 +210,7 @@ impl TokenManager {
         let token = Uuid::new_v4().to_string();
         let data = ResetTokenData {
             username: username.to_string(),
-            expiry: Instant::now() + Duration::from_secs(3600),
+            expiry: Utc::now() + chrono::Duration::hours(1),
         };
         self.reset_tokens.write().await.insert(token.clone(), data);
         token
@@ -163,7 +220,7 @@ impl TokenManager {
     pub async fn validate_reset_token(&self, token: &str) -> Option<String> {
         let mut tokens = self.reset_tokens.write().await;
         if let Some(data) = tokens.get(token)
-            && Instant::now() < data.expiry
+            && Utc::now() < data.expiry
         {
             return Some(data.username.clone());
         }
@@ -175,7 +232,7 @@ impl TokenManager {
     pub async fn consume_reset_token(&self, token: &str) -> Option<String> {
         let mut tokens = self.reset_tokens.write().await;
         if let Some(data) = tokens.remove(token)
-            && Instant::now() < data.expiry
+            && Utc::now() < data.expiry
         {
             return Some(data.username);
         }
@@ -209,7 +266,6 @@ pub async fn require_role(
         }
     }
 
-    // Redirect browsers to login page
     let accepts_html = parts
         .headers
         .get("accept")
@@ -224,21 +280,15 @@ pub async fn require_role(
     (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
 }
 
-fn extract_token(
-    headers: &axum::http::HeaderMap,
-    _extensions: &http::Extensions,
-) -> Option<String> {
-    // Check Authorization header
+fn extract_token(headers: &axum::http::HeaderMap, _extensions: &Extensions) -> Option<String> {
     if let Some(token) = headers.get(AUTHORIZATION).and_then(|v| v.to_str().ok()) {
         return Some(token.to_string());
     }
 
-    // Check X-Bearer-Token header
     if let Some(token) = headers.get("X-Bearer-Token").and_then(|v| v.to_str().ok()) {
         return Some(token.to_string());
     }
 
-    // Check Cookie header
     if let Some(cookie_header) = headers
         .get(axum::http::header::COOKIE)
         .and_then(|v| v.to_str().ok())
@@ -257,10 +307,8 @@ fn extract_token(
 }
 
 pub fn hash_password(password: &str) -> String {
-    let salt = SaltString::generate(&mut rand::thread_rng());
-    let argon2 = Argon2::default();
-    argon2
-        .hash_password(password.as_bytes(), &salt)
+    Argon2::default()
+        .hash_password(password.as_bytes())
         .unwrap()
         .to_string()
 }

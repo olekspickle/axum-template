@@ -22,6 +22,13 @@ name = "Studio Name"
 tagline = "We create interactive experiences"
 default_language = "en"
 
+[site.socials]
+twitter = "https://twitter.com/yourusername"
+bluesky = "https://bsky.app/profile/yourusername"
+instagram = "https://instagram.com/yourusername"
+github = "https://github.com/yourusername"
+linkedin = "https://linkedin.com/in/yourusername"
+
 [zip]
 path = "my.zip"
 file = "my.txt"

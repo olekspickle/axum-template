@@ -66,6 +66,16 @@ pub struct SiteParams {
     pub tagline: String,
     #[serde_inline_default("en".into())]
     pub default_language: String,
+    pub socials: Socials,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Socials {
+    pub twitter: Option<String>,
+    pub bluesky: Option<String>,
+    pub instagram: Option<String>,
+    pub github: Option<String>,
+    pub linkedin: Option<String>,
 }
 
 impl Config {

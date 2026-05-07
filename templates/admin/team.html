@@ -31,7 +31,7 @@
                         </div>
                         <textarea name="bio" placeholder="Bio" rows="2" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
-                        <input type="url" name="photo_url" placeholder="Photo URL" required
+                        <input type="url" name="photo_url" placeholder="Photo URL"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                         <div class="grid grid-cols-3 gap-4">
                             <input type="url" name="github_url" placeholder="GitHub URL"
@@ -62,7 +62,11 @@
                             {% for member in members %}
                             <tr>
                                 <td class="px-6 py-4">
-                                    <img src="{{ member.photo_url }}" alt="{{ member.name }}" class="w-12 h-12 rounded-full object-cover">
+                                    {% if let Some(url) = member.photo_url %}
+                                    <img src="{{ url }}" alt="{{ member.name }}" class="w-12 h-12 rounded-full object-cover">
+                                    {% else %}
+                                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">{{ member.name[..1] }}</div>
+                                    {% endif %}
                                 </td>
                                 <td class="px-6 py-4">{{ member.name }}</td>
                                 <td class="px-6 py-4">{{ member.role }}</td>

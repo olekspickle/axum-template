@@ -1,3 +1,4 @@
+use hyper_util::{rt, server::conn::auto::Builder, service::TowerToHyperService};
 use std::sync::Arc;
 
 pub async fn run_with_tls(addr: std::net::SocketAddr, router: axum::Router) -> anyhow::Result<()> {
@@ -5,6 +6,7 @@ pub async fn run_with_tls(addr: std::net::SocketAddr, router: axum::Router) -> a
     let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(tls_config));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(address = %addr, "listening (HTTPS)");
+
     loop {
         let (stream, _) = listener.accept().await?;
         let acceptor = acceptor.clone();
@@ -14,12 +16,12 @@ pub async fn run_with_tls(addr: std::net::SocketAddr, router: axum::Router) -> a
                 Ok(tls_stream) => {
                     let io = hyper_util::rt::TokioIo::new(tls_stream);
                     let svc = router.into_service();
-                    let hyper_svc = hyper_util::service::TowerToHyperService::new(svc);
-                    if let Err(e) = hyper_util::server::conn::auto::Builder::new(
-                        hyper_util::rt::TokioExecutor::new(),
-                    )
-                    .serve_connection(io, hyper_svc)
-                    .await
+                    let hyper_svc = TowerToHyperService::new(svc);
+
+                    // start main hyper service
+                    if let Err(e) = Builder::new(rt::TokioExecutor::new())
+                        .serve_connection(io, hyper_svc)
+                        .await
                     {
                         tracing::error!(error = %e, "TLS connection error");
                     }

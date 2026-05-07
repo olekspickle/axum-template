@@ -21,16 +21,16 @@ async fn setup_test_app() -> (Router<()>, AppState) {
 
     let db = db::create_db(&config).await.expect("Failed to create db");
     db.init().await.expect("Failed to init db");
+    let db = Arc::<dyn Db>::from(db);
 
     let token_manager = Arc::new(TokenManager::new(
         config.auth.token_ttl,
         config.admin_credentials(),
+        Some(db.clone()),
     ));
 
     let rate_limiter: Arc<RwLock<HashMap<String, (usize, Instant)>>> =
         Arc::new(RwLock::new(HashMap::new()));
-
-    let db = Arc::<dyn Db>::from(db);
     let state = AppState {
         db: db.clone(),
         config: config.clone(),

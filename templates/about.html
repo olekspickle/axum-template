@@ -7,7 +7,7 @@
 
         {% include "nav.html" %}
         <main>
-            <section class="py-16 bg-gray-50">
+            <section class="py-16">
                 <div class="container mx-auto">
                     <h1 class="text-4xl font-bold text-center mb-4">{{ site_name }}</h1>
                     <p class="text-xl text-gray-600 text-center mb-12">{{ tagline }}</p>
@@ -15,7 +15,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {% for member in team_members %}
                         <div class="text-center">
-                            <img src="{{ member.photo_url }}" alt="{{ member.name }}" class="w-40 h-40 rounded-full mx-auto object-cover shadow-lg">
+                            {% if let Some(url) = member.photo_url %}
+                            <img src="{{ url }}" alt="{{ member.name }}" class="w-40 h-40 rounded-full mx-auto object-cover shadow-lg">
+                            {% else %}
+                            <div class="w-40 h-40 rounded-full mx-auto bg-gray-200 flex items-center justify-center text-gray-400 text-4xl">{{ member.name[..1] }}</div>
+                            {% endif %}
                             <h3 class="text-lg font-bold mt-4">{{ member.name }}</h3>
                             <p class="text-indigo-600 font-medium">{{ member.role }}</p>
                             <p class="text-gray-600 mt-2 text-sm">{{ member.bio }}</p>

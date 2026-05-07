@@ -1,5 +1,7 @@
 use std::path::Path as StdPath;
+use std::str::FromStr;
 
+use argon2::{Argon2, password_hash::PasswordHasher};
 use askama::Template;
 use axum::{
     Form, Router,
@@ -16,7 +18,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     db::{NewTeamMember, Post, Project, TeamMember},
-    middleware,
+    middleware::{self, Role},
     state::AppState,
 };
 
@@ -89,17 +91,8 @@ pub async fn login(
                 .is_ok()
         {
             // Determine role based on team member's role field
-            let role = match member.role.to_lowercase().as_str() {
-                "admin" => middleware::Role::Admin,
-                "editor" => middleware::Role::Editor,
-                _ => middleware::Role::User,
-            };
-            let role_str = match role {
-                middleware::Role::Admin => "Admin",
-                middleware::Role::Editor => "Editor",
-                middleware::Role::User => "User",
-            };
-            tracing::info!(username = %form.username, %role_str, "login successful");
+            let role = Role::from_str(member.role.as_str()).unwrap_or_default();
+            tracing::info!(username = %form.username, ?role, "login successful");
             let token = state
                 .token_manager
                 .generate_user_token(member.name, role, long)
@@ -451,12 +444,8 @@ pub async fn reset_password(
     Form(form): Form<ResetPasswordForm>,
 ) -> impl IntoResponse {
     if let Some(username) = state.token_manager.consume_reset_token(&form.token).await {
-        use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
-        let salt = SaltString::generate(&mut rand::thread_rng());
-        let password_hash = Argon2::default()
-            .hash_password(form.new_password.as_bytes(), &salt)
-            .unwrap()
-            .to_string();
+        let hash = Argon2::default();
+        let hash = hash.hash_password(form.new_password.as_bytes()).unwrap();
 
         // Update password in DB or admin credentials
         if state.config.auth.admin_username == username {
@@ -465,7 +454,7 @@ pub async fn reset_password(
         } else if state.db.get_team_member(&username).await.is_ok() {
             state
                 .db
-                .update_team_member_password(&username, &password_hash)
+                .update_team_member_password(&username, &hash.to_string())
                 .await
                 .expect("Failed to update password");
         }

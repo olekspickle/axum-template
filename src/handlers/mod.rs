@@ -6,6 +6,7 @@ use axum::{
 };
 use pulldown_cmark::{Options, Parser, html};
 
+use crate::config::SiteParams;
 use crate::state::AppState;
 
 pub mod admin;
@@ -22,6 +23,7 @@ pub async fn home(State(state): State<AppState>) -> impl IntoResponse {
         featured_projects,
         recent_posts,
         team_members,
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
@@ -31,6 +33,7 @@ pub async fn projects(State(state): State<AppState>) -> impl IntoResponse {
     let template = templates::Projects {
         title: "Projects".to_string(),
         projects,
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
@@ -47,6 +50,7 @@ pub async fn project_detail(
             title: project.title.clone(),
             project,
             description_html: description_html.unwrap_or_default(),
+            site: state.config.site.clone(),
         };
         return HtmlTemplate(template).into_response();
     }
@@ -59,6 +63,7 @@ pub async fn blog(State(state): State<AppState>) -> impl IntoResponse {
     let template = templates::Blog {
         title: "Blog".to_string(),
         posts,
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
@@ -75,6 +80,7 @@ pub async fn post_detail(
             title: post.title.clone(),
             post,
             content_html: content_html.unwrap_or_default(),
+            site: state.config.site.clone(),
         };
         return HtmlTemplate(template).into_response();
     }
@@ -89,13 +95,15 @@ pub async fn about(State(state): State<AppState>) -> impl IntoResponse {
         site_name: state.config.site.name.clone(),
         tagline: state.config.site.tagline.clone(),
         team_members,
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
 
-pub async fn contact(State(_state): State<AppState>) -> impl IntoResponse {
+pub async fn contact(State(state): State<AppState>) -> impl IntoResponse {
     let template = templates::Contact {
         title: "Contact".to_string(),
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
@@ -115,10 +123,11 @@ fn render_markdown(content: &str) -> String {
     html_output
 }
 
-pub async fn to_404(uri: Uri) -> impl IntoResponse {
+pub async fn to_404(State(state): State<AppState>, uri: Uri) -> impl IntoResponse {
     let template = templates::NotFoundTemplate {
         title: "[404]".to_string(),
         uri: uri.to_string(),
+        site: state.config.site.clone(),
     };
     HtmlTemplate(template)
 }
@@ -154,6 +163,7 @@ pub mod templates {
         pub featured_projects: Vec<Project>,
         pub recent_posts: Vec<Post>,
         pub team_members: Vec<TeamMember>,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -161,6 +171,7 @@ pub mod templates {
     pub struct Projects {
         pub title: String,
         pub projects: Vec<Project>,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -169,6 +180,7 @@ pub mod templates {
         pub title: String,
         pub project: Project,
         pub description_html: String,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -176,6 +188,7 @@ pub mod templates {
     pub struct Blog {
         pub title: String,
         pub posts: Vec<Post>,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -184,6 +197,7 @@ pub mod templates {
         pub title: String,
         pub post: Post,
         pub content_html: String,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -193,12 +207,14 @@ pub mod templates {
         pub site_name: String,
         pub tagline: String,
         pub team_members: Vec<TeamMember>,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
     #[template(path = "contact.html")]
     pub struct Contact {
         pub title: String,
+        pub site: SiteParams,
     }
 
     #[derive(Template)]
@@ -206,5 +222,6 @@ pub mod templates {
     pub struct NotFoundTemplate {
         pub title: String,
         pub uri: String,
+        pub site: SiteParams,
     }
 }

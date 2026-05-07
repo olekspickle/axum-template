@@ -17,6 +17,7 @@ pub fn create_zip() -> Result<()> {
     zip.start_file(FILE, opts)
         .inspect_err(|e| warn!("create file in zip {e}"))?;
     zip.write_all(b"============MACHINE INFO==============")?;
+
     // will fail in docker
     match Command::new("docker").args(["system", "df", "-v"]).output() {
         Ok(info) => {

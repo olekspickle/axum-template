@@ -6,8 +6,8 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/olekspickle/axum-template"
 description = """
-Axum template with askama templates with sqlx/surrealdb setup.
-Featuring simple company portfolio pages and blog.
+Axum server example with askama templates with sqlx/surrealdb setup.
+Featuring simple company portfolio pages and blog and basic admin auth with cookies.
 """
 
 [features]
@@ -17,21 +17,19 @@ surreal = ["dep:surrealdb"]
 
 [dependencies]
 anyhow = "1"
-argon2 = { version = "0.5", features = ["rand"] }
-askama = "0.15"
+argon2 = { version = "0.6.0-rc.8", features = ["rand_core"] }
+askama = "0.16"
+async-trait = "0.1"
 axum = { version = "0.8", features = ["macros", "multipart"] }
-axum-extra = { version = "0.10", features = ["cookie"] }
-lazy_static = "1.5"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = "0.4"
 displaydoc = "0.2.5"
+hex = "0.4.3"
 hyper = "1"
 hyper-util = { version = "0.1", features = ["tokio", "server"] }
-http = "1.1.0"
 pulldown-cmark = "0.13"
 rustls = "0.23.15"
 rustls-pemfile = "2.1"
-tokio-rustls = { version = "0.26", features = ["ring"] }
-rand = "0.8"
+sha2 = "0.11.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_default_utils = {version =  "0.3.1", features = ["inline"] }
@@ -39,19 +37,16 @@ surrealdb = { version = "2", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"], optional = true }
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-toml = "0.8"
-tower-http = { version = "0.5", features = ["fs", "trace", "limit"] }
+tokio-rustls = { version = "0.26", features = ["ring"] }
+toml = "1"
+tower-http = { version = "0.6", features = ["fs", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zip = { version = "2", default-features = false, features = ["aes-crypto"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-async-trait = "0.1"
 utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
-utoipa-axum = "0.2.0"
-itertools = "0.14.0"
-sha2 = "0.11.0"
-hex = "0.4.3"
+zip = { version = "2", default-features = false, features = ["aes-crypto"] }
+strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
 tower = "0.5"
