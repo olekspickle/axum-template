@@ -1,4 +1,4 @@
-//! ![axum-template demo](https://github.com/user-attachments/assets/9ec00ca7-aa4b-485d-b67b-7db736179b90)
+//! !<img width="500" height="281" alt="Image" src="https://github.com/user-attachments/assets/9ec00ca7-aa4b-485d-b67b-7db736179b90" />
 //!
 //! Axum Template - Portfolio/blog website template
 //!
