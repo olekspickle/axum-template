@@ -26,7 +26,11 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
       - name: Lint
-        run: just lint
+        run: |
+          cargo clippy -- -D warnings
+          cargo fmt --all -- --check
+      - name: Machete
+        uses: bnjbvr/cargo-machete@main
 
   test:
     name: Test
