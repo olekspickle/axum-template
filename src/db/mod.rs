@@ -48,4 +48,17 @@ pub trait Db: Send + Sync {
     async fn get_team_member(&self, name: &str) -> Result<Option<TeamMember>>;
     async fn delete_team_member(&self, id: &str) -> Result<()>;
     async fn update_team_member_password(&self, username: &str, password_hash: &str) -> Result<()>;
+
+    // Token persistence
+    async fn save_token(
+        &self,
+        token: &str,
+        username: &str,
+        role: &str,
+        created_at: &str,
+        expiry: &str,
+    ) -> Result<()>;
+    async fn get_token(&self, token: &str) -> Result<Option<(String, String, String, String)>>;
+    async fn delete_token(&self, token: &str) -> Result<()>;
+    async fn cleanup_expired_tokens(&self, now: &str) -> Result<()>;
 }

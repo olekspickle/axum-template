@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+use argon2::{Argon2, PasswordHasher};
 use surrealdb::{
     Surreal,
     engine::remote::ws::{Client, Ws},
@@ -84,12 +84,24 @@ impl Db for SurrealDb {
                 DEFINE FIELD IF NOT EXISTS name ON TABLE team_members TYPE string;
                 DEFINE FIELD IF NOT EXISTS role ON TABLE team_members TYPE string;
                 DEFINE FIELD IF NOT EXISTS bio ON TABLE team_members TYPE string;
-                DEFINE FIELD IF NOT EXISTS photo_url ON TABLE team_members TYPE string;
+                DEFINE FIELD IF NOT EXISTS photo_url ON TABLE team_members TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS github_url ON TABLE team_members TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS twitter_url ON TABLE team_members TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS linkedin_url ON TABLE team_members TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS password_hash ON TABLE team_members TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS created_at ON TABLE team_members TYPE datetime;
+                "#,
+            )
+            .await?;
+
+        self.db
+            .query(
+                r#"
+                DEFINE TABLE IF NOT EXISTS tokens SCHEMAFULL;
+                DEFINE FIELD IF NOT EXISTS username ON TABLE tokens TYPE string;
+                DEFINE FIELD IF NOT EXISTS role ON TABLE tokens TYPE string;
+                DEFINE FIELD IF NOT EXISTS created_at ON TABLE tokens TYPE datetime;
+                DEFINE FIELD IF NOT EXISTS expiry ON TABLE tokens TYPE datetime;
                 "#,
             )
             .await?;
@@ -284,9 +296,9 @@ impl Db for SurrealDb {
         let now = chrono::Utc::now().to_rfc3339();
 
         let password_hash = if let Some(password) = &m.password {
-            let salt = SaltString::generate(&mut rand::thread_rng());
-            let hash = Argon2::default()
-                .hash_password(password.as_bytes(), &salt)
+            let argon2 = Argon2::default();
+            let hash = argon2
+                .hash_password(password.as_bytes())
                 .map(|h| h.to_string())
                 .ok();
             hash
@@ -341,6 +353,57 @@ impl Db for SurrealDb {
             .query("UPDATE team_member SET password_hash = $hash WHERE name = $name")
             .bind(("hash", password_hash))
             .bind(("name", username))
+            .await?
+            .take(0)?;
+        Ok(())
+    }
+
+    async fn save_token(
+        &self,
+        token: &str,
+        username: &str,
+        role: &str,
+        created_at: &str,
+        expiry: &str,
+    ) -> Result<()> {
+        let _: Option<()> = self
+            .db
+            .query("CREATE tokens SET username = $username, role = $role, created_at = $created_at, expiry = $expiry WHERE token = $token")
+            .bind(("token", token))
+            .bind(("username", username))
+            .bind(("role", role))
+            .bind(("created_at", created_at))
+            .bind(("expiry", expiry))
+            .await?
+            .take(0)?;
+        Ok(())
+    }
+
+    async fn get_token(&self, token: &str) -> Result<Option<(String, String, String, String)>> {
+        let mut result: Vec<(String, String, String, String)> = self
+            .db
+            .query("SELECT username, role, created_at, expiry FROM tokens WHERE token = $token")
+            .bind(("token", token))
+            .await?
+            .take(0)?;
+        Ok(result.pop())
+    }
+
+    async fn delete_token(&self, token: &str) -> Result<()> {
+        let _: Option<()> = self
+            .db
+            .query("DELETE FROM tokens WHERE token = $token")
+            .bind(("token", token))
+            .await?
+            .take(0)?;
+        Ok(())
+    }
+
+    async fn cleanup_expired_tokens(&self, now: &str) -> Result<()> {
+        let _: Vec<()> = self
+            .db
+            .query("DELETE FROM tokens WHERE expiry < $now")
+            .bind(("now", now))
             .await?
             .take(0)?;
         Ok(())

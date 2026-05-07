@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
-use rand::rngs::OsRng;
-
-use crate::db::{Db, NewPost, NewProject, NewTeamMember, Post, Project, TeamMember};
-use crate::error::Result;
+use argon2::{Argon2, PasswordHasher};
 use sqlx::Row;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use uuid::Uuid;
+
+use crate::db::{Db, NewPost, NewProject, NewTeamMember, Post, Project, TeamMember};
+use crate::error::Result;
 
 pub struct SqliteDb {
     pool: Arc<SqlitePool>,
@@ -77,17 +76,18 @@ impl SqliteDb {
         let twitter_url: Option<String> = row.get("twitter_url");
         let linkedin_url: Option<String> = row.get("linkedin_url");
         let password_hash: Option<String> = row.get("password_hash");
+        let photo_url: Option<String> = row.get("photo_url");
 
         TeamMember {
             github_url,
             twitter_url,
             linkedin_url,
             password_hash,
+            photo_url,
             id: row.get("id"),
             bio: row.get("bio"),
             name: row.get("name"),
             role: row.get("role"),
-            photo_url: row.get("photo_url"),
             created_at: row.get("created_at"),
         }
     }
@@ -140,12 +140,24 @@ impl Db for SqliteDb {
                 name TEXT NOT NULL,
                 role TEXT NOT NULL,
                 bio TEXT NOT NULL,
-                photo_url TEXT NOT NULL,
+                photo_url TEXT,
                 github_url TEXT,
                 twitter_url TEXT,
                 linkedin_url TEXT,
                 password_hash TEXT,
                 created_at TEXT NOT NULL
+            )",
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS tokens (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                role TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expiry TEXT NOT NULL
             )",
         )
         .execute(&*self.pool)
@@ -401,9 +413,9 @@ impl Db for SqliteDb {
         let now = chrono::Utc::now().to_rfc3339();
 
         let password_hash = if let Some(password) = &m.password {
-            let salt = SaltString::generate(&mut OsRng);
-            Argon2::default()
-                .hash_password(password.as_bytes(), &salt)
+            let argon2 = Argon2::default();
+            argon2
+                .hash_password(password.as_bytes())
                 .map(|h| h.to_string())
                 .ok()
         } else {
@@ -418,7 +430,7 @@ impl Db for SqliteDb {
         .bind(&m.name)
         .bind(&m.role)
         .bind(&m.bio)
-        .bind(&m.photo_url)
+        .bind(m.photo_url.as_deref())
         .bind(m.github_url.as_deref())
         .bind(m.twitter_url.as_deref())
         .bind(m.linkedin_url.as_deref())
@@ -479,6 +491,52 @@ impl Db for SqliteDb {
         sqlx::query("UPDATE team_members SET password_hash = ?1 WHERE name = ?2")
             .bind(password_hash)
             .bind(username)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn save_token(
+        &self,
+        token: &str,
+        username: &str,
+        role: &str,
+        created_at: &str,
+        expiry: &str,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT OR REPLACE INTO tokens (token, username, role, created_at, expiry) VALUES (?1, ?2, ?3, ?4, ?5)"
+        )
+        .bind(token)
+        .bind(username)
+        .bind(role)
+        .bind(created_at)
+        .bind(expiry)
+        .execute(&*self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn get_token(&self, token: &str) -> Result<Option<(String, String, String, String)>> {
+        let row =
+            sqlx::query("SELECT username, role, created_at, expiry FROM tokens WHERE token = ?1")
+                .bind(token)
+                .fetch_optional(&*self.pool)
+                .await?;
+        Ok(row.map(|r| (r.get(0), r.get(1), r.get(2), r.get(3))))
+    }
+
+    async fn delete_token(&self, token: &str) -> Result<()> {
+        sqlx::query("DELETE FROM tokens WHERE token = ?1")
+            .bind(token)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn cleanup_expired_tokens(&self, now: &str) -> Result<()> {
+        sqlx::query("DELETE FROM tokens WHERE expiry < ?1")
+            .bind(now)
             .execute(&*self.pool)
             .await?;
         Ok(())
