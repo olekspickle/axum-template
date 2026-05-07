@@ -23,8 +23,10 @@ jobs:
         with:
           shared-key: ci
           save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Install just
+        uses: taiki-e/install-action@just
       - name: Lint
-        run: make lint
+        run: just lint
 
   test:
     name: Test
@@ -39,5 +41,7 @@ jobs:
         with:
           shared-key: ci
           save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Install just
+        uses: taiki-e/install-action@just
       - name: Test
-        run: make test
+        run: just test
