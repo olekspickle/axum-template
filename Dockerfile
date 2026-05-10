@@ -2,9 +2,9 @@
 # Warning: Docker logs can mess up current terminal pane if not detached
 #
 # docker build -t axum-template:local .
-# docker run -d -p 8000:8000 --rm --name axum-template --hostname axum-template
+# docker run -d -p 7777:7777 --rm --name axum-template --hostname axum-template
 
-############################CACHE##############################################
+############################BUILDER#############################################
 
 FROM docker.io/rust:slim AS builder
 
@@ -35,7 +35,12 @@ FROM docker.io/debian:stable-slim
 
 WORKDIR /app
 
-# copy server files
-COPY --from=builder /app/static ./static
+# copy runtime dependencies: binary, static files, templates, config
 COPY --from=builder /app/axum-template ./axum-template
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/templates ./templates
+COPY --from=builder /app/config.toml ./config.toml
+
+EXPOSE 7777
+
 CMD ./axum-template
