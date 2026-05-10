@@ -16,6 +16,7 @@
 
 html {
     min-height: 100%;
+    overscroll-behavior: none;
 }
 
 body {
@@ -25,6 +26,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-image: linear-gradient(to bottom, transparent 70%, #696bf2 100%);
 }
 
 body > main {
@@ -61,7 +63,9 @@ canvas {
 
 #particles-js {
     z-index: -2;
-    position: absolute;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100vh;
     background-image: url("");

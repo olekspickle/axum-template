@@ -9,7 +9,7 @@
 
 const FG_COLOR = "#000000";
 const BG_COLOR = "#ffffff";
-const OTHER_COLOR = "#ff0000";
+const OTHER_COLOR = "#8154ff";
 const N = 50;
 
 /* ---- particles.js config ---- */
@@ -124,5 +124,22 @@ particlesJS("particles-js", {
   },
   "retina_detect": true
 });
+
+var pjs = document.getElementById("particles-js");
+if (pjs) {
+  var zoom = 1.15;
+  var speed = -0.35;
+  var ticking = false;
+  pjs.style.willChange = "transform";
+  window.addEventListener("scroll", function () {
+    if (!ticking) {
+      requestAnimationFrame(function () {
+        pjs.style.transform = "scale(" + zoom + ") translateY(" + (window.scrollY * speed) + "px)";
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
 });
 
