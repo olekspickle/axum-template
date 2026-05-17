@@ -6,7 +6,6 @@ ignore = [
     "Cargo.lock",
     "*.sqlite3",
     "posts.db",
-    ".template",
 ]
 
 [placeholders.domain]
