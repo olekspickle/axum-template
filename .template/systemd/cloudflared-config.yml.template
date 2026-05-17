@@ -1,16 +1,16 @@
 # Cloudflare Tunnel config for {{project-name}} (dockerless setup)
-# Path: /opt/{{project-name}}/cloudflared/config.yml
+# Path: /opt/{{project-name}}/cf/config.yml
 #
 # Steps to create tunnel:
-#   cloudflared tunnel login
-#   cloudflared tunnel create {{project-name}}
-#   cloudflared tunnel route dns {{project-name}} tunnel.example.com
+#   cf tunnel login
+#   cf tunnel create {{project-name}}
+#   cf tunnel route dns {{project-name}} {{domain}}
 
 tunnel: {{project-name}}
-credentials-file: /opt/{{project-name}}/cloudflared/{{project-name}}.json
+credentials-file: /opt/{{project-name}}/cf/{{project-name}}.json
 
 ingress:
-  - hostname: tunnel.example.com
+  - hostname: {{domain}}
     service: http://localhost:7777
   # Catch-all — return 404 for unknown hostnames
   - service: http_status:404

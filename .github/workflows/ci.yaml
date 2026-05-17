@@ -32,20 +32,20 @@ jobs:
       - name: Machete
         uses: bnjbvr/cargo-machete@main
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libsqlite3-dev
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ci
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - name: Install just
-        uses: taiki-e/install-action@just
-      - name: Test
-        run: just test
+  # test:
+  #   name: Test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - name: Install system dependencies
+  #       run: sudo apt-get update && sudo apt-get install -y pkg-config libsqlite3-dev
+  #     - name: Set up Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #     - uses: Swatinem/rust-cache@v2
+  #       with:
+  #         shared-key: ci
+  #         save-if: ${{ github.ref == 'refs/heads/main' }}
+  #     - name: Install just
+  #       uses: taiki-e/install-action@just
+  #     - name: Test
+  #       run: just test

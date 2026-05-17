@@ -7,13 +7,18 @@ file::rename(".template/.github/workflows/release.yaml.template", ".github/workf
 file::rename(".template/templates/head.html.template", "templates/head.html");
 file::rename(".template/Dockerfile.template", "docker/Dockerfile.run");
 
-// Copy systemd files (Raspberry Pi + Cloudflare Tunnel)
+// Copy systemd files
 dir::create("systemd");
 file::rename(".template/systemd/axum-template.service.template", "systemd/axum-template.service");
-file::rename(".template/systemd/cloudflared.service.template", "systemd/cloudflared.service");
-file::rename(".template/systemd/cloudflared-config.yml.template", "systemd/cloudflared-config.yml");
-file::rename(".template/systemd/setup-pi.sh.template", "systemd/setup-pi.sh");
-file::set_mode("systemd/setup-pi.sh", 0o755);
+
+// Only copy Cloudflare Tunnel files if domain was provided
+let domain = variable::get("domain");
+if domain != "" {
+    file::rename(".template/systemd/cloudflared.service.template", "systemd/cloudflared.service");
+    file::rename(".template/systemd/cloudflared-config.yml.template", "systemd/cloudflared-config.yml");
+    file::rename(".template/systemd/setup-pi.sh.template", "systemd/setup-pi.sh");
+    file::set_mode("systemd/setup-pi.sh", 0o755);
+}
 
 // Clean up .template directory
 dir::remove_tree(".template");

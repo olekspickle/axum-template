@@ -25,8 +25,8 @@ APP_DIR=/opt/axum-template
 BIN_PATH=/opt/axum-template/axum-template
 
 CF_USER=cloudflared
-CF_DIR=/opt/axum-template/cloudflared
-CF_BIN=/usr/local/bin/cloudflared
+CF_DIR=/opt/axum-template/cf
+CF_BIN=$CF_DIR/cloudflared
 CF_TUNNEL_NAME="${CF_TUNNEL_NAME:-$APP}"
 
 ARCH="$(uname -m)"
@@ -44,12 +44,14 @@ echo "============================================"
 
 # --- cloudflared ---
 
-if ! command -v "$CF_BIN" &>/dev/null; then
-    echo "[1/8] Installing cloudflared ($CF_ARCH)..."
-    curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CF_ARCH.deb" \
-        -o /tmp/cloudflared.deb
-    sudo dpkg -i /tmp/cloudflared.deb
-    rm /tmp/cloudflared.deb
+if [ ! -f "$CF_BIN" ]; then
+    echo "[1/8] Downloading cloudflared ($CF_ARCH)..."
+    sudo mkdir -p "$CF_DIR"
+    curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CF_ARCH.tar.gz" \
+        | sudo tar -xz -C "$CF_DIR" cloudflared
+    sudo chmod +x "$CF_BIN"
+    sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
+    sudo ln -sf "$CF_BIN" /usr/local/bin/cf
 else
     echo "[1/8] cloudflared already installed ($($CF_BIN --version))"
 fi
@@ -131,11 +133,12 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Authenticate cloudflared (one-time):"
-echo "       sudo -u $CF_USER cloudflared tunnel login"
+echo "       sudo -u $CF_USER $CF_BIN tunnel login"
+echo "       # or: sudo -u $CF_USER cf tunnel login"
 echo ""
 echo "  2. Create and configure tunnel:"
-echo "       sudo -u $CF_USER cloudflared tunnel create $CF_TUNNEL_NAME"
-echo "       sudo -u $CF_USER cloudflared tunnel route dns $CF_TUNNEL_NAME your-domain.com"
+echo "       sudo -u $CF_USER $CF_BIN tunnel create $CF_TUNNEL_NAME"
+echo "       sudo -u $CF_USER $CF_BIN tunnel route dns $CF_TUNNEL_NAME your-domain.com"
 echo ""
 echo "  3. Edit $CF_DIR/config.yml:"
 echo "       tunnel: $CF_TUNNEL_NAME"

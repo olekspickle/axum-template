@@ -9,5 +9,10 @@ ignore = [
     ".template",
 ]
 
+[placeholders.domain]
+type = "string"
+prompt = "Cloudflare domain for tunnel (leave empty to skip tunnel setup)"
+default = ""
+
 [hooks]
 post = ["post-generate.rhai"]

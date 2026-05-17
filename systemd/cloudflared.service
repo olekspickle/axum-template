@@ -10,7 +10,7 @@ After=axum-template.service
 Type=simple
 User=cloudflared
 Group=cloudflared
-ExecStart=/usr/local/bin/cloudflared tunnel run axum-template
+ExecStart=/opt/axum-template/cf/cloudflared tunnel run axum-template
 Restart=on-failure
 RestartSec=5
 RestartMaxDelaySec=30
@@ -24,7 +24,7 @@ PrivateDevices=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
-ReadWritePaths=/opt/axum-template/cloudflared
+ReadWritePaths=/opt/axum-template/cf
 CapabilityBoundingSet=
 AmbientCapabilities=
 

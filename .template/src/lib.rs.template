@@ -89,20 +89,21 @@
 //!    cd ~/deploy
 //!    bash setup-pi.sh
 //!    ```
-//!    The script installs cloudflared, creates system users, sets up config
-//!    directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+//!    The script downloads cloudflared to `/opt/{{project-name}}/cf/`, creates
+//!    symlinks at `/usr/local/bin/cloudflared` and `/usr/local/bin/cf`, sets
+//!    up config directories, installs systemd services, and prompts for ADMIN_PASSWORD.
 //!
 //! 4. **Configure Cloudflare Tunnel (one-time):**
 //!    ```bash
 //!    # Authenticate cloudflared as the dedicated user
-//!    sudo -u cloudflared cloudflared tunnel login
+//!    sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel login
 //!
 //!    # Create tunnel and DNS route
-//!    sudo -u cloudflared cloudflared tunnel create {{project-name}}
-//!    sudo -u cloudflared cloudflared tunnel route dns {{project-name}} your-domain.com
+//!    sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel create {{project-name}}
+//!    sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel route dns {{project-name}} {{domain}}
 //!
-//!    # Edit /etc/cloudflared/config.yml with actual tunnel name and domain
-//!    sudo $EDITOR /etc/cloudflared/config.yml
+//!    # Edit config with actual tunnel name and domain
+//!    sudo $EDITOR /opt/{{project-name}}/cf/config.yml
 //!
 //!    # Start services
 //!    sudo systemctl start {{project-name}}.service

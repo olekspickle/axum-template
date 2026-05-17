@@ -87,20 +87,21 @@ enough examples at the moment, it is quite a breeze to use
    cd ~/deploy
    bash setup-pi.sh
    ```
-   The script installs cloudflared, creates system users, sets up config
-   directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+   The script downloads cloudflared to `/opt/axum-template/cf/`, creates
+   symlinks at `/usr/local/bin/cloudflared` and `/usr/local/bin/cf`, sets
+   up config directories, installs systemd services, and prompts for ADMIN_PASSWORD.
 
 4. **Configure Cloudflare Tunnel (one-time):**
    ```bash
    # Authenticate cloudflared as the dedicated user
-   sudo -u cloudflared cloudflared tunnel login
+   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel login
 
    # Create tunnel and DNS route
-   sudo -u cloudflared cloudflared tunnel create axum-template
-   sudo -u cloudflared cloudflared tunnel route dns axum-template your-domain.com
+   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel create axum-template
+   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel route dns axum-template your-domain.com
 
-   # Edit /etc/cloudflared/config.yml with actual tunnel name and domain
-   sudo $EDITOR /etc/cloudflared/config.yml
+   # Edit config with actual tunnel name and domain
+   sudo $EDITOR /opt/axum-template/cf/config.yml
 
    # Start services
    sudo systemctl start axum-template.service

@@ -10,7 +10,7 @@ After={{project-name}}.service
 Type=simple
 User=cloudflared
 Group=cloudflared
-ExecStart=/usr/local/bin/cloudflared tunnel run {{project-name}}
+ExecStart=/opt/{{project-name}}/cf/cloudflared tunnel run {{project-name}}
 Restart=on-failure
 RestartSec=5
 RestartMaxDelaySec=30
@@ -24,7 +24,7 @@ PrivateDevices=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
-ReadWritePaths=/opt/{{project-name}}/cloudflared
+ReadWritePaths=/opt/{{project-name}}/cf
 CapabilityBoundingSet=
 AmbientCapabilities=
 
