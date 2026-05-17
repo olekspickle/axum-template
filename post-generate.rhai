@@ -16,7 +16,6 @@ if domain != "" {
     file::rename(".template/systemd/cloudflared.service.template", "systemd/cloudflared.service");
     file::rename(".template/systemd/cloudflared-config.yml.template", "systemd/cloudflared-config.yml");
     file::rename(".template/systemd/setup-pi.sh.template", "systemd/setup-pi.sh");
-    file::set_mode("systemd/setup-pi.sh", 0o755);
 }
 
 // Clean up .template directory
