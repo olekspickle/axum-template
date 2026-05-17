@@ -12,7 +12,7 @@ on:
         type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: {% raw %}${{ github.workflow }}-${{ github.ref }}{% endraw %}
   cancel-in-progress: true
 
 env:
@@ -29,14 +29,14 @@ jobs:
         id: tag
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
     outputs:
-      version: ${{ inputs.version || steps.tag.outputs.tag }}
+      version: {% raw %}${{ inputs.version || steps.tag.outputs.tag }}{% endraw %}
 
   build-linux:
     runs-on: ubuntu-latest
     needs:
       - get-version
     env:
-      VERSION: ${{needs.get-version.outputs.version}}
+      VERSION: {% raw %}${{needs.get-version.outputs.version}}{% endraw %}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -48,15 +48,15 @@ jobs:
         run: cargo build --release
       - name: Prepare release
         run: |
-          chmod +x target/release/${{ env.pkg_name }}
-          mv target/release/${{ env.pkg_name }} .
+          chmod +x target/release/{% raw %}${{ env.pkg_name }}{% endraw %}
+          mv target/release/{% raw %}${{ env.pkg_name }}{% endraw %} .
       - name: Bundle release
-        run: tar -czf ${{ env.pkg_name }}_linux.tar.gz ${{ env.pkg_name }}
+        run: tar -czf {% raw %}${{ env.pkg_name }}_linux.tar.gz ${{ env.pkg_name }}{% endraw %}
       - name: Upload package to workflow artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ env.pkg_name }}_linux.tar.gz
-          path: ${{ env.pkg_name }}_linux.tar.gz
+          name: {% raw %}${{ env.pkg_name }}_linux.tar.gz{% endraw %}
+          path: {% raw %}${{ env.pkg_name }}_linux.tar.gz{% endraw %}
           retention-days: 1
           overwrite: true
 
@@ -65,7 +65,7 @@ jobs:
     needs:
       - get-version
     env:
-      VERSION: ${{needs.get-version.outputs.version}}
+      VERSION: {% raw %}${{needs.get-version.outputs.version}}{% endraw %}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -76,14 +76,14 @@ jobs:
       - name: Build release
         run: cargo build --release
       - name: Prepare release
-        run: move target/release/${{ env.pkg_name }}.exe .
+        run: move target/release/{% raw %}${{ env.pkg_name }}{% endraw %}.exe .
       - name: Bundle release
-        run: Compress-Archive -Path ${{ env.pkg_name }}.exe -DestinationPath ${{ env.pkg_name }}_windows.zip
+        run: Compress-Archive -Path {% raw %}${{ env.pkg_name }}{% endraw %}.exe -DestinationPath {% raw %}${{ env.pkg_name }}_windows.zip{% endraw %}
       - name: Upload package to workflow artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ env.pkg_name }}_windows.zip
-          path: ${{ env.pkg_name }}_windows.zip
+          name: {% raw %}${{ env.pkg_name }}_windows.zip{% endraw %}
+          path: {% raw %}${{ env.pkg_name }}_windows.zip{% endraw %}
           retention-days: 1
           overwrite: true
 
@@ -94,7 +94,7 @@ jobs:
       - build-linux
       - build-windows
     env:
-      VERSION: ${{needs.get-version.outputs.version}}
+      VERSION: {% raw %}${{needs.get-version.outputs.version}}{% endraw %}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -103,18 +103,18 @@ jobs:
       - name: Upload Linux release
         uses: svenstaro/upload-release-action@master
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.pkg_name }}_linux.tar.gz
-          asset_name: ${{ env.pkg_name }}_${{ env.VERSION }}_linux.tar.gz
-          release_name: ${{ env.VERSION }}
-          tag: ${{ env.VERSION }}
+          repo_token: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          file: {% raw %}${{ env.pkg_name }}_linux.tar.gz{% endraw %}
+          asset_name: {% raw %}${{ env.pkg_name }}_${{ env.VERSION }}_linux.tar.gz{% endraw %}
+          release_name: {% raw %}${{ env.VERSION }}{% endraw %}
+          tag: {% raw %}${{ env.VERSION }}{% endraw %}
           overwrite: true
       - name: Upload Windows release
         uses: svenstaro/upload-release-action@master
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.pkg_name }}_windows.zip
-          asset_name: ${{ env.pkg_name }}_${{ env.VERSION }}_windows.zip
-          release_name: ${{ env.VERSION }}
-          tag: ${{ env.VERSION }}
+          repo_token: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          file: {% raw %}${{ env.pkg_name }}_windows.zip{% endraw %}
+          asset_name: {% raw %}${{ env.pkg_name }}_${{ env.VERSION }}_windows.zip{% endraw %}
+          release_name: {% raw %}${{ env.VERSION }}{% endraw %}
+          tag: {% raw %}${{ env.VERSION }}{% endraw %}
           overwrite: true
