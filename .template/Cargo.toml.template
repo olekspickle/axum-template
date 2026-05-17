@@ -17,8 +17,8 @@ surreal = ["dep:surrealdb"]
 
 [dependencies]
 anyhow = "1"
-argon2 = { version = "0.5", features = ["rand"] }
-askama = "0.15"
+argon2 = { version = "0.6.0-rc.8", features = ["rand_core"] }
+askama = "0.16"
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 lazy_static = "1.5"
@@ -39,8 +39,8 @@ surrealdb = { version = "2", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"], optional = true }
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-toml = "0.8"
-tower-http = { version = "0.5", features = ["fs", "trace", "limit"] }
+toml = "1"
+tower-http = { version = "0.6", features = ["fs", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "2", default-features = false, features = ["aes-crypto"] }
@@ -52,6 +52,7 @@ utoipa-axum = "0.2.0"
 itertools = "0.14.0"
 sha2 = "0.11.0"
 hex = "0.4.3"
+strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
 tower = "0.5"
