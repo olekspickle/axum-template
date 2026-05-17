@@ -7,8 +7,7 @@ file::rename(".template/.github/workflows/release.yaml.template", ".github/workf
 file::rename(".template/templates/head.html.template", "templates/head.html");
 file::rename(".template/Dockerfile.template", "docker/Dockerfile.run");
 
-// Copy systemd files
-dir::create("systemd");
+// Copy systemd files (dir already exists from template root)
 file::rename(".template/systemd/axum-template.service.template", "systemd/axum-template.service");
 
 // Only copy Cloudflare Tunnel files if domain was provided
@@ -21,4 +20,4 @@ if domain != "" {
 }
 
 // Clean up .template directory
-dir::remove_tree(".template");
+file::delete(".template");
