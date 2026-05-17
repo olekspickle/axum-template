@@ -1,0 +1,31 @@
+[Unit]
+Description=axum-template web server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=axum-template
+Group=axum-template
+WorkingDirectory=/opt/axum-template
+
+# Path to the binary
+ExecStart=/opt/axum-template/axum-template
+
+# Environment file with ADMIN_PASSWORD
+EnvironmentFile=-/opt/axum-template/.env
+
+# Restart behavior
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

@@ -4,6 +4,7 @@ services:
     entrypoint: /app/actix-template
     build:
       context: .
+      dockerfile: docker/Dockerfile.run
     ports:
       - "7777:7777"
     links:

@@ -54,6 +54,57 @@ Edit `config.toml` to configure:
 - Admin credentials (password is argon2 hashed)
 - Site name and tagline
 
+### Deploy on Raspberry Pi via Cloudflare Tunnel (dockerless)
+
+1. **Cross-compile for Pi (aarch64):**
+
+   Option A — native toolchain:
+   ```bash
+   rustup target add aarch64-unknown-linux-gnu
+   sudo apt install gcc-aarch64-linux-gnu   # Debian/Ubuntu
+   just build-pi
+   ```
+
+   Option B — Docker-based (no toolchain to install):
+   ```bash
+   cargo install cross
+   just cross-build-pi
+   ```
+
+2. **Copy to Pi:**
+   ```bash
+   rsync -avz target/aarch64-unknown-linux-gnu/release/{{project-name}} \
+              config.toml static/ templates/ systemd/ \
+              pi@raspberrypi:~/deploy/
+   ```
+
+3. **Run automated setup on Pi:**
+   ```bash
+   ssh pi@raspberrypi
+   cd ~/deploy
+   bash setup-pi.sh
+   ```
+   The script installs cloudflared, creates system users, sets up config
+   directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+
+4. **Configure Cloudflare Tunnel (one-time):**
+   ```bash
+   # Authenticate cloudflared as the dedicated user
+   sudo -u cloudflared cloudflared tunnel login
+
+   # Create tunnel and DNS route
+   sudo -u cloudflared cloudflared tunnel create {{project-name}}
+   sudo -u cloudflared cloudflared tunnel route dns {{project-name}} your-domain.com
+
+   # Edit /etc/cloudflared/config.yml with actual tunnel name and domain
+   sudo $EDITOR /etc/cloudflared/config.yml
+
+   # Start services
+   sudo systemctl start {{project-name}}.service
+   sudo systemctl start cloudflared.service
+   ```
+
+Systemd service files are in [`systemd/`](./systemd/)
 
 #### Afterthoughts and issues
 I found axum to be the most ergonomic web framework out there, and while there might be not

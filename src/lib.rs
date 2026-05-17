@@ -55,6 +55,58 @@
 //! - surrealdb sure adds complexity, I'm adding it under a feature because sqlite integration is
 //!   so much less crates to compile(190+ vs 500+)
 //!
+//! ## Deploy on Raspberry Pi via Cloudflare Tunnel (dockerless)
+//!
+//! 1. **Cross-compile for Pi (aarch64):**
+//!
+//!    Option A — native toolchain:
+//!    ```bash
+//!    rustup target add aarch64-unknown-linux-gnu
+//!    sudo apt install gcc-aarch64-linux-gnu   # Debian/Ubuntu
+//!    just build-pi
+//!    ```
+//!
+//!    Option B — Docker-based (no toolchain to install):
+//!    ```bash
+//!    cargo install cross
+//!    just cross-build-pi
+//!    ```
+//!
+//! 2. **Copy to Pi:**
+//!    ```bash
+//!    rsync -avz target/aarch64-unknown-linux-gnu/release/axum-template \
+//!               config.toml static/ templates/ systemd/ \
+//!               pi@raspberrypi:~/deploy/
+//!    ```
+//!
+//! 3. **Run automated setup on Pi:**
+//!    ```bash
+//!    ssh pi@raspberrypi
+//!    cd ~/deploy
+//!    bash setup-pi.sh
+//!    ```
+//!    The script installs cloudflared, creates system users, sets up config
+//!    directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+//!
+//! 4. **Configure Cloudflare Tunnel (one-time):**
+//!    ```bash
+//!    # Authenticate cloudflared as the dedicated user
+//!    sudo -u cloudflared cloudflared tunnel login
+//!
+//!    # Create tunnel and DNS route
+//!    sudo -u cloudflared cloudflared tunnel create axum-template
+//!    sudo -u cloudflared cloudflared tunnel route dns axum-template your-domain.com
+//!
+//!    # Edit /etc/cloudflared/config.yml with actual tunnel name and domain
+//!    sudo $EDITOR /etc/cloudflared/config.yml
+//!
+//!    # Start services
+//!    sudo systemctl start axum-template.service
+//!    sudo systemctl start cloudflared.service
+//!    ```
+//!
+//! Systemd service files are in [`systemd/`](https://github.com/olekspickle/axum-template/tree/main/systemd)
+//!
 //! [cargo-generate]: https://github.com/cargo-generate/cargo-generate
 //!
 

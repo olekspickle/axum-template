@@ -1,0 +1,16 @@
+# Cloudflare Tunnel config for axum-template (dockerless setup)
+# Path: /opt/axum-template/cloudflared/config.yml
+#
+# Steps to create tunnel:
+#   cloudflared tunnel login
+#   cloudflared tunnel create axum-template
+#   cloudflared tunnel route dns axum-template tunnel.example.com
+
+tunnel: axum-template
+credentials-file: /opt/axum-template/cloudflared/axum-template.json
+
+ingress:
+  - hostname: tunnel.example.com
+    service: http://localhost:7777
+  # Catch-all — return 404 for unknown hostnames
+  - service: http_status:404

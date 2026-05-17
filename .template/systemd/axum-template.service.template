@@ -1,0 +1,27 @@
+[Unit]
+Description={{project-name}} web server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{project-name}}
+Group={{project-name}}
+WorkingDirectory=/opt/{{project-name}}
+
+ExecStart=/opt/{{project-name}}/{{project-name}}
+
+EnvironmentFile=-/opt/{{project-name}}/.env
+
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
