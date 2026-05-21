@@ -83,7 +83,7 @@
 //!    ```bash
 //!    ssh pi@raspberrypi
 //!    cd ~/deploy
-//!    bash setup-pi.sh
+//!    bash setup.sh
 //!    ```
 //!    The script downloads cloudflared to `/opt/axum-template/cf/`, creates
 //!    symlinks at `/usr/local/bin/cloudflared` and `/usr/local/bin/cf`, sets

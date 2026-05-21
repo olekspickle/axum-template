@@ -16,7 +16,7 @@ let domain = variable::get("domain");
 if domain != "" {
     file::rename(".template/systemd/cloudflared.service.template", "systemd/cloudflared.service");
     file::rename(".template/systemd/cloudflared-config.yml.template", "systemd/cloudflared-config.yml");
-    file::rename(".template/systemd/setup-pi.sh.template", "systemd/setup-pi.sh");
+    file::rename(".template/systemd/setup.sh.template", "systemd/setup.sh");
 }
 
 // Clean up .template directory
