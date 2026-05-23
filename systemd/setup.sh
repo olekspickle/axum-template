@@ -44,7 +44,7 @@ echo "============================================"
 
 # --- cloudflared ---
 
-if [ ! -f "$CF_BIN" ]; then
+if [ ! -f "$CF_BIN" ] && ! which cf &>/dev/null; then
     echo "[1/8] Downloading cloudflared ($CF_ARCH)..."
     sudo mkdir -p "$CF_DIR"
     # more here: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
