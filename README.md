@@ -7,6 +7,8 @@ Axum Template - Portfolio/blog website template
 ### Overview
 Portfolio/blog website template for a company that does software/games projects
 
+This README was generated with [cargo-readme] from `src/lib.rs`.
+
 This template provides:
 - [x] Axum server with middleware
 - [x] Askama templates
@@ -26,6 +28,8 @@ This template provides:
 - [x] Password reset flow
 - [x] Remember me checkbox with longer token TTL
 - [x] Simple footer with socials
+
+[cargo-readme]: https://github.com/livioribeiro/cargo-readme
 
 ### Quick start
 Install [cargo-generate] and run:

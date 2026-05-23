@@ -2,6 +2,8 @@
 //!
 //! Axum Template - Portfolio/blog website template
 //!
+//! This README was generated with [cargo-readme] from `src/lib.rs`.
+//!
 //! ## Overview
 //! Portfolio/blog website template for a company that does software/games projects
 //!
@@ -47,6 +49,8 @@
 //! - Database path
 //! - Admin credentials (password is argon2 hashed)
 //! - Site name and tagline
+//!
+//! [cargo-readme]: https://github.com/livioribeiro/cargo-readme
 //!
 //! ### Afterthoughts and issues
 //! I found axum to be the most ergonomic web framework out there, and while there might be not

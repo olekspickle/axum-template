@@ -2,22 +2,13 @@
 
 ![{{project-name}} demo](https://github.com/user-attachments/assets/a16843e7-7537-4c73-a550-52a37b6fbf73)
 
-This project was generated using the [Axum Template](https://github.com/olekspickle/axum-template).
+This project was generated from the [Axum Template](https://github.com/olekspickle/axum-template).
 
-## Quick start
-Install [cargo-generate] and run:
-```bash
-cargo generate olekspickle/axum-template -n my-project
-```
+This project is a portfolio/blog website for a company that does software/games projects, built with the [Axum Template](https://github.com/olekspickle/axum-template).
 
-[cargo-generate]: https://github.com/cargo-generate/cargo-generate
+This README was generated with [cargo-readme] from `src/lib.rs`.
 
-Axum Template - Portfolio/blog website template
-
-### Overview
-Portfolio/blog website template for a company that does software/games projects
-
-This template provides:
+## Features
 - [x] Axum server with middleware
 - [x] Askama templates
 - [x] Containerization (with compose)
@@ -30,29 +21,31 @@ This template provides:
 - [x] HttpOnly cookie support
 - [x] Rate limiting on login
 - [x] Enable HTTPS
-- [x] Add login page template
 - [x] Audit logging
 - [x] Secure cookie flag
 - [x] Password reset flow
 - [x] Remember me checkbox with longer token TTL
-
+- [x] Simple footer with socials
 
 ## Running
 ```bash
 # SQLite3 backend:
-make run
+just run
 
 # SurrealDB backend
-make surreal
+just run-surreal
 ```
-You can peek into Makefile for build details
 
-### Configuration
+You can peek into `justfile` for build details.
+
+## Configuration
 Edit `config.toml` to configure:
 - Server host/port
 - Database path
 - Admin credentials (password is argon2 hashed)
 - Site name and tagline
+
+[cargo-readme]: https://github.com/livioribeiro/cargo-readme
 
 ### Deploy on Raspberry Pi via Cloudflare Tunnel (dockerless)
 
