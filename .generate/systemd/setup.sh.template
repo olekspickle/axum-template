@@ -16,10 +16,11 @@ set -euo pipefail
 #   3. SSH into Pi and run:
 #      ssh pi@raspberrypi
 #      cd ~/deploy
-#      bash setup-pi.sh
+#      bash setup.sh
 # ============================================================
 
-APP_USER={{project-name}}
+APP={{project-name}}
+APP_USER=${APP_USER:-$APP}
 APP_DIR=/opt/{{project-name}}
 BIN_PATH=/opt/{{project-name}}/{{project-name}}
 
@@ -43,7 +44,7 @@ echo "============================================"
 
 # --- cloudflared ---
 
-if [ ! -f "$CF_BIN" ]; then
+if [ ! -f "$CF_BIN" ] && ! which cf &>/dev/null; then
     echo "[1/8] Downloading cloudflared ($CF_ARCH)..."
     sudo mkdir -p "$CF_DIR"
     # more here: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
@@ -133,12 +134,12 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Authenticate cloudflared (one-time):"
-echo "       sudo -u \$CF_USER \$CF_BIN tunnel login"
-echo "       # or: sudo -u \$CF_USER cf tunnel login"
+echo "       sudo -u $CF_USER $CF_BIN tunnel login"
+echo "       # or: sudo -u $CF_USER cf tunnel login"
 echo ""
 echo "  2. Create and configure tunnel:"
-echo "       sudo -u \$CF_USER \$CF_BIN tunnel create \$CF_TUNNEL_NAME"
-echo "       sudo -u \$CF_USER \$CF_BIN tunnel route dns \$CF_TUNNEL_NAME {{domain}}"
+echo "       sudo -u $CF_USER $CF_BIN tunnel create $CF_TUNNEL_NAME"
+echo "       sudo -u $CF_USER $CF_BIN tunnel route dns $CF_TUNNEL_NAME {{domain}}"
 echo ""
 echo "  3. Edit $CF_DIR/config.yml:"
 echo "       tunnel: $CF_TUNNEL_NAME"

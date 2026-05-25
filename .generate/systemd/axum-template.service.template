@@ -9,13 +9,17 @@ User={{project-name}}
 Group={{project-name}}
 WorkingDirectory=/opt/{{project-name}}
 
+# Path to the binary
 ExecStart=/opt/{{project-name}}/{{project-name}}
 
+# Environment file with ADMIN_PASSWORD
 EnvironmentFile=-/opt/{{project-name}}/.env
 
+# Restart behavior
 Restart=on-failure
 RestartSec=5
 
+# Hardening
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true

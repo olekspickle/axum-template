@@ -2,42 +2,31 @@ set shell := ["bash", "-ec"]
 
 crate := "{{project-name}}"
 
-# Generate self-signed SSL certificate for local HTTPS
-cert:
+cert: # Generate self-signed SSL certificate for local HTTPS
     openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
         -keyout key.pem -out cert.pem \
         -subj "/CN=localhost" \
         -addext "subjectAltName = DNS:localhost"
 
-# Open cargo docs
-docs:
-    cargo doc --open
-
-# Run lints (clippy, fmt, machete)
 lint:
     cargo clippy -- -D warnings
     cargo fmt --all -- --check
     cargo machete
 
-# Run tests
-test:
-    cargo test
+cross-image: # Build cross-compilation Docker image
+    ./docker/arm/build.sh
 
-# Run the server (SQLite)
-run:
-    cargo run
+cross-build-pi: # Requires: cargo install cross + cross-image
+    cross build --release --target aarch64-unknown-linux-gnu
 
-# Build Docker image
-pack:
-    docker build -t {{crate}}:local .
+run-surreal:
+    docker compose -f docker/compose.yml up --build
 
-# Tag Docker image
+pack: # Build Docker image locally
+    docker build -t {{crate}}:local -f docker/Dockerfile.run .
+
 tag: pack
     docker tag {{crate}}:local olekspickle/{{crate}}:v0.1.0
-
-# Run with SurrealDB via Docker Compose
-run-surreal:
-    docker compose -f compose.yml up --build
 
 # Run Docker container with resource limits
 run-docker-restricted: pack
