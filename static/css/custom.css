@@ -12,6 +12,7 @@
     --pink: #eb4888;
     --blue: #10a2f5;
     --yellow: #e9bc3f;
+    --velvet: #696bf2;
 }
 
 html {
@@ -26,7 +27,6 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background-image: linear-gradient(to bottom, transparent 70%, #696bf2 100%);
 }
 
 body > main {
@@ -74,12 +74,6 @@ canvas {
     background-position: 50% 50%;
 }
 
-@keyframes rotate-gradient {
-    to {
-        transform: rotate(360deg)
-    }
-
-}
 a {
     text-decoration-thickness: .3ex;
     text-underline-offset: .3ex;
@@ -90,11 +84,12 @@ a:hover {
 }
 
 footer {
+    color: var(--white);
     width: 100%;
     text-align: center;
     padding: 0.3rem 0;
+    background-color: var(--velvet);
 }
-
 
 footer a {
     text-decoration: none;
@@ -106,17 +101,37 @@ footer a {
 }
 
 footer a.footer-icon-link {
-    display: inline-flex;
-    width: auto;
     padding: 0;
+    width: auto;
+    display: inline-flex;
     text-transform: none;
 }
 
 footer a.footer-manage-link {
-    display: inline-flex;
     width: auto;
+    display: inline-flex;
     padding: 0.25rem 0.5rem;
     text-transform: none;
+    border-radius: 0.5rem;
+    margin-left: 2rem;
+}
+
+footer a.footer-manage-link:hover {
+    color: var(--velvet);
+    background-color: var(--white);
+    font-weight: bolder;
+}
+
+button[type="submit"] {
+    color: var(--white);
+    background-color: var(--velvet);
+    border: 1px solid var(--velvet);
+}
+
+button[type="submit"]:hover {
+    color: var(--velvet);
+    background-color: var(--white);
+    font-weight: bolder;
 }
 
 a:hover .magic-text {
