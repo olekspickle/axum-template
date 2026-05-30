@@ -8,6 +8,7 @@
 
 tunnel: {{project-name}}
 credentials-file: /opt/{{project-name}}/cf/{{project-name}}.json
+origin-cert: /opt/{{project-name}}/cf/cert.pem
 
 ingress:
   - hostname: {{domain}}

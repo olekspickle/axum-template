@@ -8,6 +8,7 @@
 
 tunnel: axum-template
 credentials-file: /opt/axum-template/cf/axum-template.json
+origin-cert: /opt/axum-template/cf/cert.pem
 
 ingress:
   - hostname: tunnel.example.com

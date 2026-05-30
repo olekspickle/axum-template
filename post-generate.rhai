@@ -9,7 +9,7 @@ file::rename(".generate/templates/head.html.template", "templates/head.html");
 file::rename(".generate/Dockerfile.template", "docker/Dockerfile.run");
 
 // Copy systemd files (dir already exists from template root)
-file::rename(".generate/systemd/axum-template.service.template", "systemd/axum-template.service");
+file::rename(".generate/systemd/axum-template.service.template", "systemd/" + variable::get("project-name") + ".service");
 
 // Only copy Cloudflare Tunnel files if domain was provided
 let domain = variable::get("domain");
