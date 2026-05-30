@@ -8,8 +8,7 @@ After=axum-template.service
 
 [Service]
 Type=simple
-User=cloudflared
-Group=cloudflared
+# runs as root (isolated via ProtectSystem/ReadWritePaths)
 ExecStart=/opt/axum-template/cf/cloudflared --config /opt/axum-template/cf/config.yml tunnel run axum-template
 Restart=on-failure
 RestartSec=5

@@ -26,7 +26,6 @@ APP_USER=${APP_USER:-$APP}
 APP_DIR=/opt/axum-template
 BIN_PATH=/opt/axum-template/axum-template
 
-CF_USER=cloudflared
 CF_DIR=/opt/axum-template/cf
 CF_BIN=$CF_DIR/cloudflared
 CF_TUNNEL_NAME="${CF_TUNNEL_NAME:-$APP}"
@@ -60,31 +59,26 @@ else
     echo "[1/8] cloudflared already installed ($($CF_BIN --version))"
 fi
 
-echo "[2/8] Creating cloudflared system user..."
-if ! id "$CF_USER" &>/dev/null; then
-    sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$CF_USER"
-fi
-
-echo "[3/8] Setting up cloudflared config..."
+echo "[2/8] Setting up cloudflared config..."
 sudo mkdir -p "$CF_DIR"
 if [ -f "$SCRIPT_DIR/cloudflared-config.yml" ]; then
     sudo cp "$SCRIPT_DIR/cloudflared-config.yml" "$CF_DIR/config.yml"
 fi
-sudo chown -R "$CF_USER:$CF_USER" "$CF_DIR"
+sudo chown -R "$APP_USER:$APP_USER" "$CF_DIR"
 sudo chmod 700 "$CF_DIR"
 
 # --- axum-template ---
 
-echo "[4/8] Creating axum-template system user..."
+echo "[3/7] Creating axum-template system user..."
 if ! id "$APP_USER" &>/dev/null; then
     sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 fi
 
-echo "[5/8] Creating app directories..."
+echo "[4/7] Creating app directories..."
 sudo mkdir -p "$APP_DIR"
 sudo mkdir -p "$CF_DIR"
 
-echo "[6/8] Installing binary and assets..."
+echo "[5/7] Installing binary and assets..."
 if [ -f "$SCRIPT_DIR/axum-template" ]; then
     sudo cp "$SCRIPT_DIR/axum-template" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
@@ -104,7 +98,7 @@ fi
 
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-echo "[7/8] Setting up environment file..."
+echo "[6/7] Setting up environment file..."
 if [ ! -f "$APP_DIR/.env" ]; then
     read -sp "Enter ADMIN_PASSWORD: " ADMIN_PW
     echo
@@ -115,7 +109,7 @@ else
     echo "$APP_DIR/.env already exists — edit it to set ADMIN_PASSWORD"
 fi
 
-echo "[8/8] Installing systemd services..."
+echo "[7/7] Installing systemd services..."
 INSTALL_DIR=/etc/systemd/system
 
 for svc in axum-template.service cloudflared.service; do
@@ -141,11 +135,10 @@ echo "       cf tunnel login"
 echo "       # login saves cert.pem to ~/.cloudflared/"
 echo "       sudo mkdir -p $CF_DIR"
 echo "       sudo cp ~/.cloudflared/cert.pem $CF_DIR/"
-echo "       sudo chown -R $CF_USER:$CF_USER $CF_DIR"
 echo ""
 echo "  2. Create and configure tunnel:"
-echo "       sudo -u $CF_USER cf --config $CF_DIR/config.yml tunnel create $CF_TUNNEL_NAME"
-echo "       sudo -u $CF_USER cf --config $CF_DIR/config.yml tunnel route dns $CF_TUNNEL_NAME your-domain.com"
+echo "       sudo cf --config $CF_DIR/config.yml tunnel create $CF_TUNNEL_NAME"
+echo "       sudo cf --config $CF_DIR/config.yml tunnel route dns $CF_TUNNEL_NAME your-domain.com"
 echo ""
 echo "  3. Edit $CF_DIR/config.yml:"
 echo "       tunnel: $CF_TUNNEL_NAME"
