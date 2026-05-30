@@ -19,6 +19,8 @@ set -euo pipefail
 #      bash setup.sh
 # ============================================================
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 APP=axum-template
 APP_USER=${APP_USER:-$APP}
 APP_DIR=/opt/axum-template
@@ -54,6 +56,7 @@ if [ ! -f "$CF_BIN" ] && ! which cf &>/dev/null; then
     sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
     sudo ln -sf "$CF_BIN" /usr/local/bin/cf
 else
+    sudo chmod +x "$CF_BIN"
     echo "[1/8] cloudflared already installed ($($CF_BIN --version))"
 fi
 
@@ -64,8 +67,8 @@ fi
 
 echo "[3/8] Setting up cloudflared config..."
 sudo mkdir -p "$CF_DIR"
-if [ -f ./cloudflared-config.yml ]; then
-    sudo cp ./cloudflared-config.yml "$CF_DIR/config.yml"
+if [ -f "$SCRIPT_DIR/cloudflared-config.yml" ]; then
+    sudo cp "$SCRIPT_DIR/cloudflared-config.yml" "$CF_DIR/config.yml"
 fi
 sudo chown -R "$CF_USER:$CF_USER" "$CF_DIR"
 sudo chmod 700 "$CF_DIR"
@@ -82,21 +85,21 @@ sudo mkdir -p "$APP_DIR"
 sudo mkdir -p "$CF_DIR"
 
 echo "[6/8] Installing binary and assets..."
-if [ -f ./axum-template ]; then
-    sudo cp ./axum-template "$BIN_PATH"
+if [ -f "$SCRIPT_DIR/axum-template" ]; then
+    sudo cp "$SCRIPT_DIR/axum-template" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
 else
     echo "WARNING: axum-template binary not found — place it manually at $BIN_PATH"
 fi
 
 for dir in static templates; do
-    if [ -d "./$dir" ]; then
-        sudo cp -r "./$dir" "$APP_DIR/"
+    if [ -d "$SCRIPT_DIR/$dir" ]; then
+        sudo cp -r "$SCRIPT_DIR/$dir" "$APP_DIR/"
     fi
 done
 
-if [ -f ./config.toml ]; then
-    sudo cp ./config.toml "$APP_DIR/config.toml"
+if [ -f "$SCRIPT_DIR/config.toml" ]; then
+    sudo cp "$SCRIPT_DIR/config.toml" "$APP_DIR/config.toml"
 fi
 
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
@@ -116,8 +119,8 @@ echo "[8/8] Installing systemd services..."
 INSTALL_DIR=/etc/systemd/system
 
 for svc in axum-template.service cloudflared.service; do
-    if [ -f "./$svc" ]; then
-        sudo cp "./$svc" "$INSTALL_DIR/"
+    if [ -f "$SCRIPT_DIR/$svc" ]; then
+        sudo cp "$SCRIPT_DIR/$svc" "$INSTALL_DIR/"
     else
         echo "  WARNING: $svc not found next to this script"
     fi
