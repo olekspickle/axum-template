@@ -45,7 +45,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
-zip = { version = "2", default-features = false, features = ["aes-crypto"] }
+zip = { version = "3", default-features = false, features = ["aes-crypto"] }
 strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
