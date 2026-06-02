@@ -548,7 +548,7 @@ dependencies = [
  "sqlx",
  "strum 0.28.0",
  "surrealdb",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-rustls",
  "toml",
