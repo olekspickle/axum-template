@@ -1,7 +1,7 @@
 services:
-  actix-template:
+  axum-template:
     hostname: server
-    entrypoint: /app/actix-template
+    entrypoint: /app/axum-template
     build:
       context: .
       dockerfile: docker/Dockerfile.run

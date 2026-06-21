@@ -47,8 +47,7 @@ if [ ! -f "$CF_BIN" ] && ! which cf &>/dev/null; then
     echo "[1/8] Downloading cloudflared ($CF_ARCH)..."
     sudo mkdir -p "$CF_DIR"
     # more here: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
-    curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CF_ARCH.tar.gz" \
-        | sudo tar -xz -C "$CF_DIR" cloudflared
+    sudo curl -fsSL -o "$CF_BIN" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CF_ARCH"
     sudo chmod +x "$CF_BIN"
     sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
     sudo ln -sf "$CF_BIN" /usr/local/bin/cf
