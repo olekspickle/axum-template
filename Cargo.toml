@@ -39,13 +39,13 @@ thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tokio-rustls = { version = "0.26", features = ["ring"] }
 toml = "1"
-tower-http = { version = "0.6", features = ["fs", "trace", "limit"] }
+tower-http = { version = "0.7", features = ["fs", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
-zip = { version = "3", default-features = false, features = ["aes-crypto"] }
+zip = { version = "8", default-features = false, features = ["aes-crypto"] }
 strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
