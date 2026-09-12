@@ -13,6 +13,9 @@ lint:
     cargo fmt --all -- --check
     cargo machete
 
+build-pi: # Native aarch64 build (requires gcc-aarch64-linux-gnu)
+    cargo build --release --target aarch64-unknown-linux-gnu
+
 cross-image: # Build cross-compilation Docker image
     ./docker/arm/build.sh
 
@@ -23,16 +26,16 @@ run-surreal:
     docker compose -f docker/compose.yml up --build
 
 pack: # Build Docker image locally
-    docker build -t {{crate}}:local -f docker/Dockerfile.run .
+    docker build -t {% raw %}{{crate}}{% endraw %}:local -f docker/Dockerfile.run .
 
-tag: pack
-    docker tag {{crate}}:local olekspickle/{{crate}}:v0.1.0
+tag version: pack # Tag local image, e.g. `just tag v0.2.0`
+    docker tag {% raw %}{{crate}}{% endraw %}:local olekspickle/{% raw %}{{crate}}{% endraw %}:{% raw %}{{version}}{% endraw %}
 
 # Run Docker container with resource limits
 run-docker-restricted: pack
     docker run -d \
         -p 7777:7777 \
-        --hostname {{crate}} \
+        --hostname {% raw %}{{crate}}{% endraw %} \
         --cpus="0.25" --memory="0.5g" \
         -e $log_level \
-        {{crate}}:local
+        {% raw %}{{crate}}{% endraw %}:local

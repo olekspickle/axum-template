@@ -13,26 +13,27 @@
     <!-- Web Monetization -->
     <!--<meta name="monetization" content="">-->
     <!-- Primary Meta Tags -->
-    <title>{{ title }}</title>
-    <meta name="title" content="{{ title }}">
+    <!-- Askama syntax is wrapped in raw blocks so cargo-generate (liquid) leaves it alone -->
+    <title>{% raw %}{{ title }}{% endraw %}</title>
+    <meta name="title" content="{% raw %}{{ title }}{% endraw %}">
     <meta name="description" content="Short description of the page">
     <!-- Open Graph / Facebook -->
     <!-- https://developers.facebook.com/docs/sharing/webmasters/ -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://olekspickle.github.com/{{project-name}}">
-    <meta property="og:title" content="{{ title }}">
+    <meta property="og:title" content="{% raw %}{{ title }}{% endraw %}">
     <meta property="og:description" content="Short description of the page">
     <meta property="og:image" content="static/icons/home.svg">
     <!-- Twitter -->
     <!-- https://www.digitalocean.com/community/tutorials/how-to-add-twitter-card-and-open-graph-social-metadata-to-your-webpage-with-html -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://olekspickle.github.com/{{project-name}}/">
-    <meta property="twitter:title" content="{{ title }}">
+    <meta property="twitter:title" content="{% raw %}{{ title }}{% endraw %}">
     <meta property="twitter:description" content="Short description of the page">
     <meta name="twitter:creator" content="@olekspickle">
     <meta name="twitter:image" content="static/icons/home.svg">
     <!-- RSS Link -->
-    <!--<link rel="alternate" href="/rss.xml" type="application/rss+xml" title="{{ title }}">-->
+    <!--<link rel="alternate" href="/rss.xml" type="application/rss+xml" title="{% raw %}{{ title }}{% endraw %}">-->
     <!-- Sitemap -->
     <link rel="sitemap" href="/sitemap-index.xml">
     <!-- Google Search Console -->
@@ -43,9 +44,9 @@
     <script src="/static/js/tailwind-typography.js"></script>
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/custom.css">
-    {% if title=="[404]" %}
+    {% raw %}{% if title=="[404]" %}{% endraw %}
     <link rel="stylesheet" href="/static/css/glitch.css">
-    {% endif %}
+    {% raw %}{% endif %}{% endraw %}
     <!-- Particles.js -->
     <script src="/static/js/particles.js"></script>
     <script src="/static/js/particles-cfg.js"></script>

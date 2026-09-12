@@ -6,7 +6,7 @@ This project was generated from the [Axum Template](https://github.com/olekspick
 
 This project is a portfolio/blog website for a company that does software/games projects, built with the [Axum Template](https://github.com/olekspickle/axum-template).
 
-This README was generated with [cargo-readme] from `src/lib.rs`.
+This README is the canonical docs — `src/lib.rs` pulls it in with `#![doc = include_str!("../README.md")]`.
 
 ## Features
 - [x] Axum server with middleware
@@ -45,7 +45,7 @@ Edit `config.toml` to configure:
 - Admin credentials (password is argon2 hashed)
 - Site name and tagline
 
-[cargo-readme]: https://github.com/livioribeiro/cargo-readme
+[cargo-generate]: https://github.com/cargo-generate/cargo-generate
 
 ### Deploy on Raspberry Pi via Cloudflare Tunnel (dockerless)
 
@@ -75,23 +75,24 @@ Edit `config.toml` to configure:
    ```bash
    ssh pi@raspberrypi
    cd ~/deploy
-   bash setup-pi.sh
+   bash systemd/setup.sh
    ```
-   The script downloads cloudflared to `/opt/{{project-name}}/cf/`, creates
-   symlinks at `/usr/local/bin/cloudflared` and `/usr/local/bin/cf`, sets
-   up config directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+   The script creates a system user, downloads cloudflared to
+   `/opt/{{project-name}}/cf/`, creates symlinks at `/usr/local/bin/cloudflared`
+   and `/usr/local/bin/cf`, and installs the app, config and systemd services.
+   Set the admin password in `config.toml` before deploying.
+   Undo everything with `bash systemd/cleanup.sh`.
 
 4. **Configure Cloudflare Tunnel (one-time):**
    ```bash
-   # Authenticate cloudflared as the dedicated user
-   sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel login
+   # Authenticate (browser flow), then copy the cert
+   sudo cf tunnel login
+   sudo cp /root/.cloudflared/cert.pem /opt/{{project-name}}/cf/
 
-   # Create tunnel and DNS route
-   sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel create {{project-name}}
-   sudo -u cloudflared /opt/{{project-name}}/cf/cloudflared tunnel route dns {{project-name}} {{domain}}
-
-   # Edit config with actual tunnel name and domain
-   sudo $EDITOR /opt/{{project-name}}/cf/config.yml
+   # Create tunnel, copy credentials, route DNS
+   sudo cf tunnel create {{project-name}}
+   sudo cp /root/.cloudflared/<tunnel-id>.json /opt/{{project-name}}/cf/{{project-name}}.json
+   sudo cf tunnel route dns {{project-name}} {{domain}}
 
    # Start services
    sudo systemctl start {{project-name}}.service

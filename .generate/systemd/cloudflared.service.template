@@ -3,8 +3,6 @@ Description=Cloudflare Tunnel for {{project-name}}
 Documentation=https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
 After=network-online.target
 Wants=network-online.target
-BindsTo={{project-name}}.service
-After={{project-name}}.service
 
 [Service]
 Type=simple

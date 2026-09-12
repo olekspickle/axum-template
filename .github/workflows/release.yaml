@@ -1,9 +1,7 @@
 name: release-flow
 
+# Manual trigger only: run from Actions tab with a version like v1.2.3
 on:
-  push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+*"
   workflow_dispatch:
     inputs:
       version:
@@ -17,62 +15,61 @@ concurrency:
 
 env:
   pkg_name: axum-template
+  VERSION: ${{ inputs.version }}
 
 permissions:
   contents: write
 
 jobs:
-  get-version:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get tag
-        id: tag
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-    outputs:
-      version: ${{ inputs.version || steps.tag.outputs.tag }}
-
   build-linux:
     runs-on: ubuntu-latest
-    needs:
-      - get-version
-    env:
-      VERSION: ${{needs.get-version.outputs.version}}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
       - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
       - name: Build release
         run: cargo build --release
-      - name: Prepare release
-        run: |
-          chmod +x target/release/${{ env.pkg_name }}
-          mv target/release/${{ env.pkg_name }} .
       - name: Bundle release
-        run: tar -czf ${{ env.pkg_name }}_linux.tar.gz ${{ env.pkg_name }}
+        run: tar -czf ${{ env.pkg_name }}_linux-x86_64.tar.gz -C target/release ${{ env.pkg_name }}
       - name: Upload package to workflow artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.pkg_name }}_linux.tar.gz
-          path: ${{ env.pkg_name }}_linux.tar.gz
+          name: ${{ env.pkg_name }}_linux-x86_64.tar.gz
+          path: ${{ env.pkg_name }}_linux-x86_64.tar.gz
+          retention-days: 1
+          overwrite: true
+
+  build-linux-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cross
+        uses: taiki-e/install-action@cross
+      - name: Build cross image
+        run: ./docker/arm/build.sh
+      - name: Build release (aarch64)
+        run: cross build --release --target aarch64-unknown-linux-gnu
+      - name: Bundle release
+        run: tar -czf ${{ env.pkg_name }}_linux-aarch64.tar.gz -C target/aarch64-unknown-linux-gnu/release ${{ env.pkg_name }}
+      - name: Upload package to workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.pkg_name }}_linux-aarch64.tar.gz
+          path: ${{ env.pkg_name }}_linux-aarch64.tar.gz
           retention-days: 1
           overwrite: true
 
   build-windows:
     runs-on: windows-latest
-    needs:
-      - get-version
-    env:
-      VERSION: ${{needs.get-version.outputs.version}}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
       - name: Build release
         run: cargo build --release
       - name: Prepare release
@@ -90,27 +87,34 @@ jobs:
   upload-release:
     runs-on: ubuntu-latest
     needs:
-      - get-version
       - build-linux
+      - build-linux-aarch64
       - build-windows
-    env:
-      VERSION: ${{needs.get-version.outputs.version}}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download all artifacts
         uses: actions/download-artifact@v8
-      - name: Upload Linux release
-        uses: svenstaro/upload-release-action@master
+      - name: Upload Linux x86_64 release
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.pkg_name }}_linux.tar.gz
-          asset_name: ${{ env.pkg_name }}_${{ env.VERSION }}_linux.tar.gz
+          file: ${{ env.pkg_name }}_linux-x86_64.tar.gz
+          asset_name: ${{ env.pkg_name }}_${{ env.VERSION }}_linux-x86_64.tar.gz
+          release_name: ${{ env.VERSION }}
+          tag: ${{ env.VERSION }}
+          overwrite: true
+      - name: Upload Linux aarch64 release
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.pkg_name }}_linux-aarch64.tar.gz
+          asset_name: ${{ env.pkg_name }}_${{ env.VERSION }}_linux-aarch64.tar.gz
           release_name: ${{ env.VERSION }}
           tag: ${{ env.VERSION }}
           overwrite: true
       - name: Upload Windows release
-        uses: svenstaro/upload-release-action@master
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ env.pkg_name }}_windows.zip

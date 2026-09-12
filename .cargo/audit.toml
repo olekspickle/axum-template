@@ -1,0 +1,5 @@
+[advisories]
+# RUSTSEC-2023-0071 (rsa Marvin attack): rsa has no fixed upgrade upstream.
+# Reached only transitively via jsonwebtoken -> surrealdb-core, which is behind
+# the optional `surreal` feature (default build is `sqlite`). Recheck on new rsa release.
+ignore = ["RUSTSEC-2023-0071"]

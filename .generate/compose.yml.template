@@ -1,0 +1,34 @@
+# Dev-only SurrealDB stack. Secrets below are local-dev defaults — do not reuse in prod.
+services:
+  {{project-name}}:
+    hostname: server
+    entrypoint: /app/{{project-name}}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.run
+    ports:
+      - "7777:7777"
+    depends_on:
+      - surrealdb
+    networks:
+      - spider-web
+    environment:
+      - MANAGER_AUTH_TOKEN=secret
+      - SURREALDB_URL=ws://surrealdb:8000  # SurrealDB WebSocket URL
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+  surrealdb:
+    hostname: surrealdb
+    image: surrealdb/surrealdb:v3
+    command: start --log debug --user root --pass root memory
+    networks:
+      - spider-web
+    ports:
+      - "8000:8000"  # SurrealDB HTTP/WebSocket interface port
+    environment:
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+networks:
+  spider-web:
+    # shared with other local projects; compose creates it if missing
+    name: spider-web
