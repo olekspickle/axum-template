@@ -13,6 +13,9 @@ lint:
     cargo fmt --all -- --check
     cargo machete
 
+build-pi: # Native aarch64 build (requires gcc-aarch64-linux-gnu)
+    cargo build --release --target aarch64-unknown-linux-gnu
+
 cross-image: # Build cross-compilation Docker image
     ./docker/arm/build.sh
 
@@ -25,8 +28,8 @@ run-surreal:
 pack: # Build Docker image locally
     docker build -t {{crate}}:local -f docker/Dockerfile.run .
 
-tag: pack
-    docker tag {{crate}}:local olekspickle/{{crate}}:v0.1.0
+tag version: pack # Tag local image, e.g. `just tag v0.2.0`
+    docker tag {{crate}}:local olekspickle/{{crate}}:{{version}}
 
 # Run Docker container with resource limits
 run-docker-restricted: pack

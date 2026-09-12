@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[cfg(feature = "surreal")]
+use surrealdb::types::SurrealValue;
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
 pub struct NewProject {
     pub title: String,
@@ -16,6 +19,7 @@ pub struct NewProject {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
+#[cfg_attr(feature = "surreal", derive(SurrealValue))]
 pub struct Project {
     pub id: String,
     pub title: String,
@@ -59,6 +63,7 @@ pub struct NewPost {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
+#[cfg_attr(feature = "surreal", derive(SurrealValue))]
 pub struct Post {
     pub id: String,
     pub title: String,
@@ -101,6 +106,7 @@ pub struct NewTeamMember {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "surreal", derive(SurrealValue))]
 pub struct TeamMember {
     pub id: String,
     pub name: String,

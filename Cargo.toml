@@ -1,6 +1,6 @@
 [package]
 name = "axum-template"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Oleks Pickle <22867443+olekspickle@users.noreply.github.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -28,11 +28,11 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["tokio", "server"] }
 pulldown-cmark = "0.13"
 rustls = "0.23.15"
-rustls-pemfile = "2.1"
 sha2 = "0.11.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_default_utils = {version =  "0.3.1", features = ["inline"] }
+strum = { version = "0.28.0", features = ["derive"] }
 surrealdb = { version = "3", optional = true }
 sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "chrono", "uuid"], optional = true }
 thiserror = "2"
@@ -46,7 +46,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 zip = { version = "8", default-features = false, features = ["aes-crypto"] }
-strum = { version = "0.28.0", features = ["derive"] }
+rustls-pki-types = "1"
 
 [dev-dependencies]
 tower = "0.5"

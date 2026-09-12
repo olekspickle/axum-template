@@ -1,3 +1,4 @@
+# Dev-only SurrealDB stack. Secrets below are local-dev defaults — do not reuse in prod.
 services:
   axum-template:
     hostname: server
@@ -7,8 +8,6 @@ services:
       dockerfile: docker/Dockerfile.run
     ports:
       - "7777:7777"
-    links:
-      - surrealdb
     depends_on:
       - surrealdb
     networks:
@@ -20,7 +19,7 @@ services:
       - SURREALDB_PASS=root
   surrealdb:
     hostname: surrealdb
-    image: surrealdb/surrealdb:latest
+    image: surrealdb/surrealdb:v3
     command: start --log debug --user root --pass root memory
     networks:
       - spider-web
@@ -31,5 +30,5 @@ services:
       - SURREALDB_PASS=root
 networks:
   spider-web:
-    external:
-      name: spider-web
+    # shared with other local projects; compose creates it if missing
+    name: spider-web

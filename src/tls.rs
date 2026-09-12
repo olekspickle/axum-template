@@ -40,20 +40,18 @@ pub async fn run_with_tls(addr: std::net::SocketAddr, router: axum::Router) -> a
 /// openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem -addext "subjectAltName = DNS:mydnsname.com"
 fn load_tls_config() -> rustls::ServerConfig {
     use rustls::ServerConfig;
-    use rustls::pki_types::CertificateDer;
-    use rustls_pemfile::{certs, private_key};
+    use rustls_pki_types::pem::PemObject;
+    use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 
     let cert_file =
         &mut std::io::BufReader::new(std::fs::File::open("cert.pem").expect("cert.pem not found"));
     let key_file =
         &mut std::io::BufReader::new(std::fs::File::open("key.pem").expect("key.pem not found"));
 
-    let cert_chain: Vec<CertificateDer> = certs(cert_file)
+    let cert_chain: Vec<CertificateDer> = CertificateDer::pem_reader_iter(cert_file)
         .collect::<Result<_, _>>()
         .expect("failed to parse cert.pem");
-    let key = private_key(key_file)
-        .expect("failed to parse key.pem")
-        .expect("no private key found");
+    let key = PrivateKeyDer::from_pem_reader(key_file).expect("no private key found in key.pem");
 
     ServerConfig::builder()
         .with_no_client_auth()

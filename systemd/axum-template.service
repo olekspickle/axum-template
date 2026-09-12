@@ -12,9 +12,6 @@ WorkingDirectory=/opt/axum-template
 # Path to the binary
 ExecStart=/opt/axum-template/axum-template
 
-# Environment file with ADMIN_PASSWORD
-EnvironmentFile=-/opt/axum-template/.env
-
 # Restart behavior
 Restart=on-failure
 RestartSec=5

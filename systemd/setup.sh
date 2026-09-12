@@ -7,16 +7,18 @@ set -euo pipefail
 # ============================================================
 # Usage:
 #   1. Cross-compile on dev machine:
-#      just cross-build-pi   # or: cargo build --target aarch64-unknown-linux-gnu --release
+#      just cross-build-pi   # or: just build-pi
 #
 #   2. Copy to Pi:
-#      TARGET=target/aarch64-unknown-linux-gnu/release/axum-template
-#      rsync -avz "$TARGET" config.toml static/ templates/ systemd/ pi@raspberrypi:~/deploy/
+#      rsync -avz target/aarch64-unknown-linux-gnu/release/axum-template \
+#                 config.toml static/ templates/ systemd/ pi@raspberrypi:~/deploy/
 #
 #   3. SSH into Pi and run:
 #      ssh pi@raspberrypi
 #      cd ~/deploy
-#      bash setup.sh
+#      bash systemd/setup.sh
+#
+#   Undo everything with: bash systemd/cleanup.sh
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,11 +26,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP=axum-template
 APP_USER=${APP_USER:-$APP}
 APP_DIR=/opt/axum-template
-BIN_PATH=/opt/axum-template/axum-template
+BIN_PATH=$APP_DIR/axum-template
 
-CF_DIR=/opt/axum-template/cf
+CF_DIR=$APP_DIR/cf
 CF_BIN=$CF_DIR/cloudflared
 CF_TUNNEL_NAME="${CF_TUNNEL_NAME:-$APP}"
+
+# Assets sit next to this script or one level up (rsync layout:
+# deploy/{axum-template,config.toml,static,templates,systemd/})
+if [ -f "$SCRIPT_DIR/$APP" ]; then
+    BASE_DIR="$SCRIPT_DIR"
+else
+    BASE_DIR="$(dirname "$SCRIPT_DIR")"
+fi
 
 ARCH="$(uname -m)"
 case "$ARCH" in
@@ -39,28 +49,35 @@ case "$ARCH" in
 esac
 
 echo "============================================"
-echo "axum-template + Cloudflare Tunnel Setup"
+echo "$APP + Cloudflare Tunnel Setup"
 echo "Arch: $ARCH"
 echo "============================================"
 
+# --- user first: every chown below depends on it ---
+
+echo "[1/5] Creating $APP system user..."
+if ! id "$APP_USER" &>/dev/null; then
+    sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
+fi
+
 # --- cloudflared ---
 
-if [ ! -f "$CF_BIN" ] && ! which cf &>/dev/null; then
-    echo "[1/8] Downloading cloudflared ($CF_ARCH)..."
-    sudo mkdir -p "$CF_DIR"
+echo "[2/5] Installing cloudflared ($CF_ARCH)..."
+sudo mkdir -p "$CF_DIR"
+if [ -f "$CF_BIN" ]; then
+    echo "  already installed ($("$CF_BIN" --version))"
+else
     # more here: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
     sudo curl -fsSL -o "$CF_BIN" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CF_ARCH"
     sudo chmod +x "$CF_BIN"
-    sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
-    sudo ln -sf "$CF_BIN" /usr/local/bin/cf
-else
-    sudo chmod +x "$CF_BIN"
-    echo "[1/8] cloudflared already installed ($($CF_BIN --version))"
 fi
+sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
+sudo ln -sf "$CF_BIN" /usr/local/bin/cf
 
-echo "[2/8] Setting up cloudflared config..."
-sudo mkdir -p "$CF_DIR"
-if [ -f "$SCRIPT_DIR/cloudflared-config.yml" ]; then
+echo "[3/5] Setting up cloudflared config..."
+if [ -f "$CF_DIR/config.yml" ]; then
+    echo "  $CF_DIR/config.yml exists — keeping it (remove it first to reset)"
+elif [ -f "$SCRIPT_DIR/cloudflared-config.yml" ]; then
     sudo cp "$SCRIPT_DIR/cloudflared-config.yml" "$CF_DIR/config.yml"
 fi
 sudo chown -R "$APP_USER:$APP_USER" "$CF_DIR"
@@ -68,47 +85,30 @@ sudo chmod 700 "$CF_DIR"
 
 # --- axum-template ---
 
-echo "[3/7] Creating axum-template system user..."
-if ! id "$APP_USER" &>/dev/null; then
-    sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
-fi
-
-echo "[4/7] Creating app directories..."
+echo "[4/5] Installing binary, assets and config..."
 sudo mkdir -p "$APP_DIR"
-sudo mkdir -p "$CF_DIR"
-
-echo "[5/7] Installing binary and assets..."
-if [ -f "$SCRIPT_DIR/axum-template" ]; then
-    sudo cp "$SCRIPT_DIR/axum-template" "$BIN_PATH"
+if [ -f "$BASE_DIR/$APP" ]; then
+    sudo cp "$BASE_DIR/$APP" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
 else
-    echo "WARNING: axum-template binary not found — place it manually at $BIN_PATH"
+    echo "  WARNING: $APP binary not found — place it manually at $BIN_PATH"
 fi
 
 for dir in static templates; do
-    if [ -d "$SCRIPT_DIR/$dir" ]; then
-        sudo cp -r "$SCRIPT_DIR/$dir" "$APP_DIR/"
+    if [ -d "$BASE_DIR/$dir" ]; then
+        sudo cp -r "$BASE_DIR/$dir" "$APP_DIR/"
     fi
 done
 
-if [ -f "$SCRIPT_DIR/config.toml" ]; then
-    sudo cp "$SCRIPT_DIR/config.toml" "$APP_DIR/config.toml"
+if [ -f "$BASE_DIR/config.toml" ]; then
+    sudo cp "$BASE_DIR/config.toml" "$APP_DIR/config.toml"
+else
+    echo "  WARNING: config.toml not found — place it manually at $APP_DIR/config.toml"
 fi
 
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-echo "[6/7] Setting up environment file..."
-if [ ! -f "$APP_DIR/.env" ]; then
-    read -sp "Enter ADMIN_PASSWORD: " ADMIN_PW
-    echo
-    echo "ADMIN_PASSWORD=$ADMIN_PW" | sudo tee "$APP_DIR/.env" > /dev/null
-    sudo chmod 600 "$APP_DIR/.env"
-    sudo chown root:root "$APP_DIR/.env"
-else
-    echo "$APP_DIR/.env already exists — edit it to set ADMIN_PASSWORD"
-fi
-
-echo "[7/7] Installing systemd services..."
+echo "[5/5] Installing systemd services..."
 INSTALL_DIR=/etc/systemd/system
 
 for svc in axum-template.service cloudflared.service; do
@@ -129,29 +129,27 @@ echo "Setup complete!"
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Authenticate cloudflared (one-time):"
-echo "       cf tunnel login"
-echo "       # login saves cert.pem to ~/.cloudflared/"
-echo "       sudo mkdir -p $CF_DIR"
-echo "       sudo cp ~/.cloudflared/cert.pem $CF_DIR/"
+echo "  1. Set a real admin password:"
+echo "       sudo \$EDITOR $APP_DIR/config.toml   # [auth] admin_password"
 echo ""
-echo "  2. Create and configure tunnel:"
-echo "       sudo cf --config $CF_DIR/config.yml tunnel create $CF_TUNNEL_NAME"
-echo "       sudo cf --config $CF_DIR/config.yml tunnel route dns $CF_TUNNEL_NAME your-domain.com"
+echo "  2. Authenticate cloudflared (one-time, browser flow):"
+echo "       sudo cf tunnel login"
+echo "       sudo cp /root/.cloudflared/cert.pem $CF_DIR/"
 echo ""
-echo "  3. Edit $CF_DIR/config.yml:"
-echo "       tunnel: $CF_TUNNEL_NAME"
-echo "       credentials-file: $CF_DIR/$CF_TUNNEL_NAME.json"
-echo "       ingress:"
-echo "         - hostname: your-domain.com"
-echo "           service: http://localhost:7777"
-echo "         - service: http_status:404"
+echo "  3. Create tunnel, copy credentials, route DNS:"
+echo "       sudo cf tunnel create $CF_TUNNEL_NAME"
+echo "       # note <tunnel-id> in output, then:"
+echo "       sudo cp /root/.cloudflared/<tunnel-id>.json $CF_DIR/$CF_TUNNEL_NAME.json"
+echo "       sudo cf tunnel route dns $CF_TUNNEL_NAME your-domain.com"
 echo ""
-echo "  4. Start services:"
+echo "  4. Check $CF_DIR/config.yml (hostname must match the DNS route):"
+echo "       sudo \$EDITOR $CF_DIR/config.yml"
+echo ""
+echo "  5. Start services:"
 echo "       sudo systemctl start axum-template.service"
 echo "       sudo systemctl start cloudflared.service"
 echo ""
-echo "  5. Check status:"
+echo "  6. Check status:"
 echo "       sudo journalctl -u axum-template -f"
 echo "       sudo journalctl -u cloudflared -f"
 echo "============================================"

@@ -6,11 +6,14 @@ ignore = [
     "Cargo.lock",
     "*.sqlite3",
     "posts.db",
+    "WIP.md",
+    "key.pem",
+    "cert.pem",
 ]
 
 [placeholders.domain]
 type = "string"
-prompt = "Cloudflare domain for tunnel (leave empty to skip tunnel setup)"
+prompt = "Website domain for tunnel (empty -> skip tunnel setup)"
 default = ""
 
 [hooks]

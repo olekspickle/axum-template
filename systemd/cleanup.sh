@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================
+# Cleanup script: axum-template + Cloudflare Tunnel
+# Reverses systemd/setup.sh on the Pi.
+# Does NOT delete the Cloudflare tunnel itself — see last note.
+# ============================================================
+
+APP=axum-template
+APP_USER=${APP_USER:-$APP}
+APP_DIR=/opt/axum-template
+
+echo "============================================"
+echo "$APP + Cloudflare Tunnel Cleanup"
+echo "============================================"
+
+echo "[1/4] Stopping and disabling services..."
+sudo systemctl disable --now axum-template.service 2>/dev/null || true
+sudo systemctl disable --now cloudflared.service 2>/dev/null || true
+
+echo "[2/4] Removing systemd units..."
+sudo rm -f /etc/systemd/system/axum-template.service
+sudo rm -f /etc/systemd/system/cloudflared.service
+sudo systemctl daemon-reload
+
+echo "[3/4] Removing files, symlinks and user..."
+sudo rm -rf "$APP_DIR"
+sudo rm -f /usr/local/bin/cloudflared /usr/local/bin/cf
+if id "$APP_USER" &>/dev/null; then
+    sudo userdel "$APP_USER"
+fi
+
+echo "[4/4] Done."
+echo ""
+echo "Not touched (do manually if needed):"
+echo "  - Cloudflare tunnel + DNS route:"
+echo "      cf tunnel delete $APP"
+echo "    Needs cert.pem — run BEFORE cleanup or keep a copy of $APP_DIR/cf."
+echo "============================================"

@@ -28,7 +28,11 @@ impl SurrealDb {
         let db: Surreal<Client> = Surreal::init();
 
         db.connect::<Ws>(url).await?;
-        db.signin(Root { username, password }).await?;
+        db.signin(Root {
+            username: username.clone(),
+            password: password.clone(),
+        })
+        .await?;
         db.use_ns(namespace).use_db(name).await?;
 
         tracing::info!(db=%url, "Database initialized");
@@ -115,7 +119,7 @@ impl Db for SurrealDb {
 
         let created: Option<Project> = self
             .db
-            .create(("project", &id))
+            .create(("project", id.clone()))
             .content(Project {
                 id: id.clone(),
                 title: p.title.clone(),
@@ -207,7 +211,7 @@ impl Db for SurrealDb {
 
         let created: Option<Post> = self
             .db
-            .create(("post", &id))
+            .create(("post", id.clone()))
             .content(Post {
                 id: id.clone(),
                 title: p.title.clone(),
@@ -308,7 +312,7 @@ impl Db for SurrealDb {
 
         let created: Option<TeamMember> = self
             .db
-            .create(("team_member", &id))
+            .create(("team_member", id.clone()))
             .content(TeamMember {
                 id: id.clone(),
                 name: m.name.clone(),

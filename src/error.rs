@@ -1,10 +1,9 @@
 use axum::{body::Body, http::StatusCode, response::Response};
 use displaydoc::Display;
+#[cfg(feature = "sqlite")]
 use sqlx::Error as SqlxError;
 #[cfg(feature = "surreal")]
 use surrealdb::Error as SurrealError;
-#[cfg(feature = "surreal")]
-use surrealdb::error::{Api as SurrealApiError, Db as SurrealDbError};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, AppError>;
@@ -22,14 +21,6 @@ pub enum AppError {
     /// Failed to execute sqlite query
     #[cfg(feature = "sqlite")]
     Sqlite(#[from] SqlxError),
-    /// Failed to execute surrealdb query
-    #[cfg(feature = "surreal")]
-    #[error(transparent)]
-    SurrealDb(#[from] SurrealDbError),
-    /// Invalid surrealdb api
-    #[cfg(feature = "surreal")]
-    #[error(transparent)]
-    SurrealApi(#[from] Box<SurrealApiError>),
     /// Surreal connection error
     #[cfg(feature = "surreal")]
     #[error(transparent)]
@@ -68,21 +59,15 @@ impl From<AppError> for Response<Body> {
                 }
             },
             #[cfg(feature = "surreal")]
-            AppError::SurrealDb(db_err) => match db_err {
-                SurrealDbError::InvalidArguments { .. } => StatusCode::BAD_REQUEST,
-                SurrealDbError::TbNotFound { .. }
-                | SurrealDbError::IdNotFound { .. }
-                | SurrealDbError::PaNotFound { .. } => StatusCode::NOT_FOUND,
-                err => {
-                    tracing::error!(err=?err, "SurrealDbError");
+            AppError::Surreal(sdb_err) => {
+                if sdb_err.is_validation() {
+                    StatusCode::BAD_REQUEST
+                } else if sdb_err.is_not_found() {
+                    StatusCode::NOT_FOUND
+                } else {
+                    tracing::error!(err=?sdb_err, "SurrealError");
                     StatusCode::INTERNAL_SERVER_ERROR
                 }
-            },
-            #[cfg(feature = "surreal")]
-            AppError::SurrealApi(api_err) => {
-                let err = api_err;
-                tracing::error!(err=?err, "SurrealApiError");
-                StatusCode::INTERNAL_SERVER_ERROR
             }
             AppError::NotFound => StatusCode::NOT_FOUND,
             err => {

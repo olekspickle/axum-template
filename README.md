@@ -7,7 +7,7 @@ Axum Template - Portfolio/blog website template
 ### Overview
 Portfolio/blog website template for a company that does software/games projects
 
-This README was generated with [cargo-readme] from `src/lib.rs`.
+This README is the canonical docs — `src/lib.rs` pulls it in with `#![doc = include_str!("../README.md")]`.
 
 This template provides:
 - [x] Axum server with middleware
@@ -28,8 +28,6 @@ This template provides:
 - [x] Password reset flow
 - [x] Remember me checkbox with longer token TTL
 - [x] Simple footer with socials
-
-[cargo-readme]: https://github.com/livioribeiro/cargo-readme
 
 ### Quick start
 Install [cargo-generate] and run:
@@ -89,23 +87,24 @@ enough examples at the moment, it is quite a breeze to use
    ```bash
    ssh pi@raspberrypi
    cd ~/deploy
-   bash setup.sh
+   bash systemd/setup.sh
    ```
-   The script downloads cloudflared to `/opt/axum-template/cf/`, creates
-   symlinks at `/usr/local/bin/cloudflared` and `/usr/local/bin/cf`, sets
-   up config directories, installs systemd services, and prompts for ADMIN_PASSWORD.
+   The script creates a system user, downloads cloudflared to
+   `/opt/axum-template/cf/`, creates symlinks at `/usr/local/bin/cloudflared`
+   and `/usr/local/bin/cf`, and installs the app, config and systemd services.
+   Set the admin password in `config.toml` before deploying.
+   Undo everything with `bash systemd/cleanup.sh`.
 
 4. **Configure Cloudflare Tunnel (one-time):**
    ```bash
-   # Authenticate cloudflared as the dedicated user
-   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel login
+   # Authenticate (browser flow), then copy the cert
+   sudo cf tunnel login
+   sudo cp /root/.cloudflared/cert.pem /opt/axum-template/cf/
 
-   # Create tunnel and DNS route
-   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel create axum-template
-   sudo -u cloudflared /opt/axum-template/cf/cloudflared tunnel route dns axum-template your-domain.com
-
-   # Edit config with actual tunnel name and domain
-   sudo $EDITOR /opt/axum-template/cf/config.yml
+   # Create tunnel, copy credentials, route DNS
+   sudo cf tunnel create axum-template
+   sudo cp /root/.cloudflared/<tunnel-id>.json /opt/axum-template/cf/axum-template.json
+   sudo cf tunnel route dns axum-template your-domain.com
 
    # Start services
    sudo systemctl start axum-template.service
