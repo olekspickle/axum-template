@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path as StdPath;
 use std::str::FromStr;
 
@@ -5,8 +6,8 @@ use argon2::{Argon2, password_hash::PasswordHasher};
 use askama::Template;
 use axum::{
     Form, Router,
-    extract::{DefaultBodyLimit, Path, State, multipart::Multipart},
-    http::StatusCode,
+    extract::{DefaultBodyLimit, Path, Query, State, multipart::Multipart},
+    http::{StatusCode, header::HeaderName},
     middleware::from_fn_with_state,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{delete, get, post},
@@ -17,7 +18,7 @@ use sha2::{Digest, Sha256};
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    db::{NewTeamMember, Post, Project, TeamMember},
+    db::{NewPost, NewProject, NewTeamMember, Post, Project, TeamMember},
     middleware::{self, Role},
     state::AppState,
 };
@@ -30,24 +31,36 @@ pub async fn login_page() -> impl IntoResponse {
 }
 
 pub fn router(state: AppState) -> Router<AppState> {
-    Router::<AppState>::new()
+    let public = Router::<AppState>::new()
+        .route("/forgot-password", get(forgot_password_page))
+        .route("/forgot-password", post(forgot_password))
+        .route("/reset-password", get(reset_password_page))
+        .route("/reset-password", post(reset_password));
+
+    let protected = Router::<AppState>::new()
         .route("/", get(admin_dashboard))
-        .route("/projects", get(admin_projects_list))
+        .route(
+            "/projects",
+            get(admin_projects_list).post(admin_save_project),
+        )
+        .route("/projects/search", get(admin_search_projects))
         .route("/projects/new", get(admin_new_project))
         .route("/projects/{slug}", get(admin_edit_project))
-        .route("/posts", get(admin_posts_list))
+        .route("/posts", get(admin_posts_list).post(admin_save_post))
+        .route("/posts/search", get(admin_search_posts))
         .route("/posts/new", get(admin_new_post))
         .route("/posts/{slug}", get(admin_edit_post))
         .route("/upload", post(upload_media))
         .route("/team", get(admin_team_list))
         .route("/team", post(admin_create_team_member))
+        .route("/team/search", get(admin_search_team))
         .route("/team/{id}", delete(admin_delete_team_member))
         .route("/logout", post(admin_logout))
-        .route("/forgot-password", get(forgot_password_page))
-        .route("/forgot-password", post(forgot_password))
-        .route("/reset-password", get(reset_password_page))
-        .route("/reset-password", post(reset_password))
-        .layer(from_fn_with_state(state, middleware::require_role))
+        .route("/preview", post(admin_preview))
+        .layer(from_fn_with_state(state, middleware::require_role));
+
+    public
+        .merge(protected)
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024)) // 250Mb per file limit
 }
@@ -73,7 +86,7 @@ pub async fn login(
         tracing::info!(username = %form.username, role = "Admin", "login successful");
         let mut response = (
             StatusCode::OK,
-            axum::Json(serde_json::json!({ "token": token })),
+            [(HeaderName::from_static("hx-redirect"), "/admin")],
         )
             .into_response();
         set_auth_cookie(&mut response, &token, &state, long);
@@ -99,7 +112,7 @@ pub async fn login(
                 .await;
             let mut response = (
                 StatusCode::OK,
-                axum::Json(serde_json::json!({ "token": token })),
+                [(HeaderName::from_static("hx-redirect"), "/admin/")],
             )
                 .into_response();
             set_auth_cookie(&mut response, &token, &state, long);
@@ -108,11 +121,17 @@ pub async fn login(
     }
 
     tracing::warn!(username = %form.username, "login failed: invalid credentials");
-    (
-        StatusCode::UNAUTHORIZED,
-        axum::Json(serde_json::json!({ "error": "Invalid credentials" })),
-    )
+    Html(r#"<div id="error-message" class="text-red-600 text-sm">Invalid credentials</div>"#)
         .into_response()
+}
+
+#[derive(Deserialize)]
+pub struct PreviewForm {
+    content: String,
+}
+
+pub async fn admin_preview(Form(form): Form<PreviewForm>) -> impl IntoResponse {
+    Html(crate::handlers::render_markdown(&form.content))
 }
 
 fn set_auth_cookie(response: &mut Response, token: &str, state: &AppState, long: bool) {
@@ -203,6 +222,213 @@ pub async fn admin_edit_post(
     HtmlTemplate(template)
 }
 
+pub async fn admin_search_projects(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let q = params.get("q").cloned().unwrap_or_default().to_lowercase();
+    let projects = state.db.get_projects().await.unwrap_or_default();
+    let projects: Vec<Project> = if q.is_empty() {
+        projects
+    } else {
+        projects
+            .into_iter()
+            .filter(|p| {
+                p.title.to_lowercase().contains(&q)
+                    || p.slug.to_lowercase().contains(&q)
+                    || p.category.to_lowercase().contains(&q)
+            })
+            .collect()
+    };
+    let template = admin_templates::AdminProjectRows { projects };
+    HtmlTemplate(template)
+}
+
+pub async fn admin_search_posts(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let q = params.get("q").cloned().unwrap_or_default().to_lowercase();
+    let posts = state.db.get_posts().await.unwrap_or_default();
+    let posts: Vec<Post> = if q.is_empty() {
+        posts
+    } else {
+        posts
+            .into_iter()
+            .filter(|p| {
+                p.title.to_lowercase().contains(&q)
+                    || p.author.to_lowercase().contains(&q)
+                    || p.excerpt.to_lowercase().contains(&q)
+                    || p.tags.iter().any(|t| t.to_lowercase().contains(&q))
+            })
+            .collect()
+    };
+    let template = admin_templates::AdminPostRows { posts };
+    HtmlTemplate(template)
+}
+
+pub async fn admin_search_team(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let q = params.get("q").cloned().unwrap_or_default().to_lowercase();
+    let members = state.db.get_team_members().await.unwrap_or_default();
+    let members: Vec<TeamMember> = if q.is_empty() {
+        members
+    } else {
+        members
+            .into_iter()
+            .filter(|m| {
+                m.name.to_lowercase().contains(&q)
+                    || m.role.to_lowercase().contains(&q)
+                    || m.bio.to_lowercase().contains(&q)
+            })
+            .collect()
+    };
+    let template = admin_templates::AdminTeamRows { members };
+    HtmlTemplate(template)
+}
+
+#[derive(Deserialize)]
+pub struct ProjectForm {
+    id: Option<String>,
+    title: String,
+    slug: String,
+    description: String,
+    category: String,
+    thumbnail_url: String,
+    #[serde(default)]
+    images: String,
+    #[serde(default)]
+    tech_stack: String,
+    demo_url: Option<String>,
+    repo_url: Option<String>,
+    featured: Option<String>,
+}
+
+impl ProjectForm {
+    fn into_new_project(self) -> NewProject {
+        NewProject {
+            title: self.title,
+            slug: self.slug,
+            description: self.description,
+            category: self.category,
+            thumbnail_url: self.thumbnail_url,
+            images: split_csv(self.images),
+            tech_stack: split_csv(self.tech_stack),
+            demo_url: optional_url(self.demo_url),
+            repo_url: optional_url(self.repo_url),
+            featured: self.featured.is_some(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct PostForm {
+    id: Option<String>,
+    title: String,
+    slug: String,
+    content: String,
+    #[serde(default)]
+    excerpt: String,
+    cover_image: String,
+    #[serde(default)]
+    tags: String,
+    author: String,
+    published: Option<String>,
+}
+
+impl PostForm {
+    fn into_new_post(self) -> NewPost {
+        let excerpt = if self.excerpt.trim().is_empty() {
+            self.content.chars().take(200).collect()
+        } else {
+            self.excerpt
+        };
+        NewPost {
+            title: self.title,
+            slug: self.slug,
+            content: self.content,
+            excerpt,
+            cover_image: self.cover_image,
+            tags: split_csv(self.tags),
+            author: self.author,
+            published: self.published.is_some(),
+        }
+    }
+}
+
+fn split_csv(value: String) -> Vec<String> {
+    value
+        .split(',')
+        .map(|item| item.trim().to_string())
+        .filter(|item| !item.is_empty())
+        .collect()
+}
+
+fn optional_url(value: Option<String>) -> Option<String> {
+    value.filter(|v| !v.trim().is_empty())
+}
+
+pub async fn admin_save_project(
+    State(state): State<AppState>,
+    form: Result<Form<ProjectForm>, axum::extract::rejection::FormRejection>,
+) -> impl IntoResponse {
+    let form = match form {
+        Ok(form) => form.0,
+        Err(_) => return error_fragment("Invalid form data"),
+    };
+
+    let id = form.id.clone();
+    let new_project = form.into_new_project();
+    let result = match id {
+        Some(id) => state.db.update_project(&id, new_project).await,
+        None => state.db.create_project(new_project).await.map(|_| ()),
+    };
+
+    match result {
+        Ok(_) => redirect_fragment("/admin/projects"),
+        Err(e) => error_fragment(&format!("Failed to save project: {e}")),
+    }
+}
+
+pub async fn admin_save_post(
+    State(state): State<AppState>,
+    form: Result<Form<PostForm>, axum::extract::rejection::FormRejection>,
+) -> impl IntoResponse {
+    let form = match form {
+        Ok(form) => form.0,
+        Err(_) => return error_fragment("Invalid form data"),
+    };
+
+    let id = form.id.clone();
+    let new_post = form.into_new_post();
+    let result = match id {
+        Some(id) => state.db.update_post(&id, new_post).await,
+        None => state.db.create_post(new_post).await.map(|_| ()),
+    };
+
+    match result {
+        Ok(_) => redirect_fragment("/admin/posts"),
+        Err(e) => error_fragment(&format!("Failed to save post: {e}")),
+    }
+}
+
+fn redirect_fragment(path: &str) -> Response {
+    (
+        StatusCode::OK,
+        [(HeaderName::from_static("hx-redirect"), path)],
+    )
+        .into_response()
+}
+
+fn error_fragment(message: &str) -> Response {
+    Html(format!(
+        r#"<div id="error-message" class="text-red-600 text-sm mt-2">{message}</div>"#
+    ))
+    .into_response()
+}
+
 pub async fn admin_team_list(State(state): State<AppState>) -> impl IntoResponse {
     let members = state.db.get_team_members().await.unwrap_or_default();
     let template = admin_templates::AdminTeamList {
@@ -231,15 +457,15 @@ pub async fn admin_delete_team_member(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     state.db.delete_team_member(&id).await.ok();
-    Redirect::to("/admin/team").into_response()
+    StatusCode::OK
 }
 
 pub async fn admin_logout(
     State(state): State<AppState>,
-    axum::extract::Json(payload): axum::extract::Json<serde_json::Value>,
+    headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    if let Some(token) = payload.get("token").and_then(|t| t.as_str()) {
-        state.token_manager.invalidate(token).await;
+    if let Some(token) = middleware::extract_token(&headers, &axum::http::Extensions::default()) {
+        state.token_manager.invalidate(&token).await;
     }
     // Clear the cookie
     let cookie = if state.https {
@@ -247,7 +473,11 @@ pub async fn admin_logout(
     } else {
         "token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=/"
     };
-    let mut response = Redirect::to("/admin/login").into_response();
+    let mut response = (
+        StatusCode::OK,
+        [(HeaderName::from_static("hx-redirect"), "/login")],
+    )
+        .into_response();
     response
         .headers_mut()
         .insert(axum::http::header::SET_COOKIE, cookie.parse().unwrap());
@@ -404,28 +634,24 @@ pub async fn forgot_password(
         tracing::info!(username = %form.username, token = %reset_token, "password reset requested");
         // In production: send email with reset link
         // For now, return token in response (dev only)
-        return (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({
-                "message": "Password reset requested",
-                "reset_token": reset_token // Remove in production
-            })),
-        )
-            .into_response();
+        return Html(format!(
+            r#"<div id="success-message" class="text-green-600 text-sm">Password reset requested (Dev: {reset_token})</div>"#
+        ))
+        .into_response();
     }
 
     // Always return success to prevent username enumeration
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "message": "If account exists, reset instructions sent" })),
+    Html(
+        r#"<div id="success-message" class="text-green-600 text-sm">If account exists, reset instructions sent</div>"#,
     )
-        .into_response()
+    .into_response()
 }
 
 #[derive(Deserialize)]
 pub struct ResetPasswordForm {
     token: String,
     new_password: String,
+    confirm_password: String,
 }
 
 pub async fn reset_password_page(
@@ -443,15 +669,24 @@ pub async fn reset_password(
     State(state): State<AppState>,
     Form(form): Form<ResetPasswordForm>,
 ) -> impl IntoResponse {
-    if let Some(username) = state.token_manager.consume_reset_token(&form.token).await {
-        let hash = Argon2::default();
-        let hash = hash.hash_password(form.new_password.as_bytes()).unwrap();
+    if form.new_password != form.confirm_password {
+        return Html(
+            r#"<div id="error-message" class="text-red-600 text-sm">Passwords do not match</div>"#,
+        )
+        .into_response();
+    }
 
-        // Update password in DB or admin credentials
+    if let Some(username) = state.token_manager.consume_reset_token(&form.token).await {
+        // Admin credentials come from config.toml / ADMIN_PASSWORD env, not the DB — no in-memory reset
         if state.config.auth.admin_username == username {
-            // For admin, update in config (runtime only, not persisted)
-            tracing::warn!(username = %username, "admin password reset (runtime only, not persisted)");
-        } else if state.db.get_team_member(&username).await.is_ok() {
+            return error_fragment(
+                "Admin password is managed in config.toml / ADMIN_PASSWORD env — edit it and restart",
+            );
+        }
+
+        if state.db.get_team_member(&username).await.is_ok() {
+            let hash = Argon2::default();
+            let hash = hash.hash_password(form.new_password.as_bytes()).unwrap();
             state
                 .db
                 .update_team_member_password(&username, &hash.to_string())
@@ -462,16 +697,15 @@ pub async fn reset_password(
         tracing::info!(username = %username, "password reset successful");
         return (
             StatusCode::OK,
-            axum::Json(serde_json::json!({ "message": "Password reset successful" })),
+            [(HeaderName::from_static("hx-redirect"), "/login")],
         )
             .into_response();
     }
 
-    (
-        StatusCode::BAD_REQUEST,
-        axum::Json(serde_json::json!({ "error": "Invalid or expired reset token" })),
+    Html(
+        r#"<div id="error-message" class="text-red-600 text-sm">Invalid or expired reset token</div>"#,
     )
-        .into_response()
+    .into_response()
 }
 
 struct HtmlTemplate<T>(T);
@@ -509,6 +743,12 @@ pub mod admin_templates {
     }
 
     #[derive(Template)]
+    #[template(path = "admin/_project-rows.html")]
+    pub struct AdminProjectRows {
+        pub projects: Vec<Project>,
+    }
+
+    #[derive(Template)]
     #[template(path = "admin/project-edit.html")]
     pub struct AdminProjectEdit {
         pub title: String,
@@ -523,6 +763,12 @@ pub mod admin_templates {
     }
 
     #[derive(Template)]
+    #[template(path = "admin/_post-rows.html")]
+    pub struct AdminPostRows {
+        pub posts: Vec<Post>,
+    }
+
+    #[derive(Template)]
     #[template(path = "admin/post-edit.html")]
     pub struct AdminPostEdit {
         pub title: String,
@@ -533,6 +779,12 @@ pub mod admin_templates {
     #[template(path = "admin/team.html")]
     pub struct AdminTeamList {
         pub title: String,
+        pub members: Vec<TeamMember>,
+    }
+
+    #[derive(Template)]
+    #[template(path = "admin/_team-rows.html")]
+    pub struct AdminTeamRows {
         pub members: Vec<TeamMember>,
     }
 

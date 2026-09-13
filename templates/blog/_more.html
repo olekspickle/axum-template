@@ -1,0 +1,10 @@
+{% for post in posts %}
+{% include "blog/_post-card.html" %}
+{% endfor %}
+<div id="blog-more" class="mt-10 text-center" style="grid-column:1 / -1">
+    {% if has_more %}
+    <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            hx-get="/blog" hx-vals='{"page":{{ next_page }}}'
+            hx-target="#blog-cards" hx-swap="beforeend">Load more posts</button>
+    {% endif %}
+</div>

@@ -7,38 +7,7 @@
         {% include "nav.html" %}
 
         <main>
-            <section class="py-16">
-                <div class="container mx-auto">
-                    <h1 class="text-4xl font-bold text-center mb-12">Blog</h1>
-                    {% if !posts.is_empty() %}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {% for post in posts %}
-                        <a href="/blog/{{ post.slug }}" class="block group">
-                            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition">
-                                <img src="{{ post.cover_image }}" alt="{{ post.title }}" class="w-full h-48 object-cover">
-                                <div class="p-6">
-                                    <h3 class="text-xl font-bold magic-text">{{ post.title }}</h3>
-                                    <p class="text-gray-600 mt-2 line-clamp-3 magic-text">{{ post.excerpt }}</p>
-                                    <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
-                                        <div>
-                                            <span class="font-medium">{{ post.author }}</span>
-                                            <span class="mx-2">&bull;</span>
-                                            <span>{{ post.format_date() }}</span>
-                                        </div>
-                                    </div>
-                                    {% for tag in post.tags %}
-                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">{{ tag }}</span>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="text-center text-gray-600">No posts yet.</p>
-                    {% endif %}
-                </div>
-            </section>
+            {% include "blog/_content.html" %}
         </main>
 
         {% include "footer.html" %}

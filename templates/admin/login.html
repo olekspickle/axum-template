@@ -7,7 +7,7 @@
             <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
                 <h1 class="text-2xl font-bold mb-6 text-center">Admin Login</h1>
 
-                <form id="login-form" class="space-y-4">
+                <form id="login-form" class="space-y-4" hx-post="/login" hx-target="#error-message" hx-swap="outerHTML">
                     <div>
                         <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
                         <input type="text" id="username" name="username" required
@@ -40,6 +40,5 @@
             </div>
         </div>
 
-        <script src="/static/js/auth.js"></script>
     </body>
 </html>

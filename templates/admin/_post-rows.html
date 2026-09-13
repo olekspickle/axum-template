@@ -1,0 +1,19 @@
+{% for post in posts %}
+                            <tr>
+                                <td class="px-6 py-4">{{ post.title }}</td>
+                                <td class="px-6 py-4">{{ post.author }}</td>
+                                <td class="px-6 py-4">
+                                    {% if post.published %}
+                                    <span class="text-green-600">Yes</span>
+                                    {% else %}
+                                    <span class="text-gray-400">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 space-x-2">
+                                    <a href="/admin/posts/{{ post.slug }}" class="text-indigo-600 hover:underline">Edit</a>
+                                    <button type="button" hx-delete="/api/v1/posts/{{ post.id }}" hx-confirm="Delete this post?" hx-swap="none" hx-on::after-request="if(event.detail.successful){this.closest('tr').remove()}else{alert('Delete failed: ' + event.detail.xhr.status)}" class="text-red-600 hover:underline">Delete</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="px-6 py-4 text-gray-500">No matching posts</td></tr>
+                            {% endfor %}

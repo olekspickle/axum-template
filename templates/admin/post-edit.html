@@ -12,13 +12,14 @@
                     <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
                     <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                    <button type="button" hx-post="/admin/logout" class="block w-full text-left py-2 px-4 rounded hover:bg-gray-700 text-gray-400">Logout</button>
                 </nav>
             </aside>
 
             <main class="flex-1 p-8">
                 <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = post %}Edit{% else %}Add{% endif %} Post</h1>
 
-                <form id="post-form" class="space-y-6 max-w-2xl">
+                <form id="post-form" class="space-y-6 max-w-2xl" hx-post="/admin/posts" hx-target="#error-message" hx-swap="outerHTML">
                     {% if let Some(p) = post %}
                     <input type="hidden" name="id" value="{{ p.id }}">
                     {% endif %}
@@ -38,8 +39,11 @@
                         <label class="block text-sm font-medium text-gray-700">Content (Markdown)</label>
                         <div id="content-wrapper" class="relative">
                             <textarea name="content" id="content-input" rows="12" required
+                                hx-post="/admin/preview" hx-trigger="input changed delay:500ms, load"
+                                hx-target="#preview" hx-swap="innerHTML"
                                 class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg font-mono">{% if let Some(p) = post %}{{ p.content }}{% endif %}</textarea>
                         </div>
+                        <div id="preview" class="mt-4 px-4 py-2 border border-gray-200 rounded-lg prose max-w-none"></div>
                         <div id="upload-status" class="mt-2 text-sm text-gray-500"></div>
                     </div>
 
@@ -80,11 +84,13 @@
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
                         {% if let Some(p) = post %}Update{% else %}Create{% endif %} Post
                     </button>
+
+                    <div id="error-message"></div>
                 </form>
             </main>
         </div>
 
-        <script src="/static/js/admin.js"></script>
+        <script src="/static/js/upload.js"></script>
         <script src="/static/js/slug-generator.js"></script>
     </body>
 </html>

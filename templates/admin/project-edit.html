@@ -12,13 +12,14 @@
                     <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
                     <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                    <button type="button" hx-post="/admin/logout" class="block w-full text-left py-2 px-4 rounded hover:bg-gray-700 text-gray-400">Logout</button>
                 </nav>
             </aside>
 
             <main class="flex-1 p-8">
                 <h1 class="text-3xl font-bold mb-8">{% if let Some(p) = project %}Edit{% else %}Add{% endif %} Project</h1>
 
-                <form id="project-form" class="space-y-6 max-w-2xl">
+                <form id="project-form" class="space-y-6 max-w-2xl" hx-post="/admin/projects" hx-target="#error-message" hx-swap="outerHTML">
                     {% if let Some(p) = project %}
                     <input type="hidden" name="id" value="{{ p.id }}">
                     {% endif %}
@@ -72,13 +73,13 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Demo URL</label>
-                        <input type="url" name="demo_url" value=""
+                        <input type="url" name="demo_url" value="{% if let Some(p) = project %}{% if let Some(url) = p.demo_url %}{{ url }}{% endif %}{% endif %}"
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Repository URL</label>
-                        <input type="url" name="repo_url" value=""
+                        <input type="url" name="repo_url" value="{% if let Some(p) = project %}{% if let Some(url) = p.repo_url %}{{ url }}{% endif %}{% endif %}"
                             class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
                     </div>
 
@@ -94,11 +95,12 @@
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
                         {% if let Some(p) = project %}Update{% else %}Create{% endif %} Project
                     </button>
+
+                    <div id="error-message"></div>
                 </form>
             </main>
         </div>
-<script src="/static/js/slug-generator.js"></script>
-
-        <script src="/static/js/admin.js"></script>
+        <script src="/static/js/slug-generator.js"></script>
+        <script src="/static/js/upload.js"></script>
     </body>
 </html>

@@ -280,7 +280,10 @@ pub async fn require_role(
     (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
 }
 
-fn extract_token(headers: &axum::http::HeaderMap, _extensions: &Extensions) -> Option<String> {
+pub(crate) fn extract_token(
+    headers: &axum::http::HeaderMap,
+    _extensions: &Extensions,
+) -> Option<String> {
     if let Some(token) = headers.get(AUTHORIZATION).and_then(|v| v.to_str().ok()) {
         return Some(token.to_string());
     }

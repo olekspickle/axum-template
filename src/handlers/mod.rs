@@ -9,6 +9,11 @@ use pulldown_cmark::{Options, Parser, html};
 use crate::config::SiteParams;
 use crate::state::AppState;
 
+use crate::db::Post;
+use axum::extract::Query;
+use axum::http::HeaderMap;
+use serde::Deserialize;
+
 pub mod admin;
 
 pub async fn home(State(state): State<AppState>) -> impl IntoResponse {
@@ -58,14 +63,89 @@ pub async fn project_detail(
     Redirect::to("/404").into_response()
 }
 
-pub async fn blog(State(state): State<AppState>) -> impl IntoResponse {
-    let posts = state.db.get_published_posts().await.unwrap_or_default();
-    let template = templates::Blog {
-        title: "Blog".to_string(),
-        posts,
-        site: state.config.site.clone(),
+const BLOG_POSTS_PER_PAGE: usize = 6;
+
+#[derive(Debug, Default, Deserialize)]
+pub struct BlogQuery {
+    tag: Option<String>,
+    page: Option<usize>,
+}
+
+fn collect_all_tags(posts: &[Post]) -> Vec<String> {
+    let mut tags: Vec<String> = Vec::new();
+    for post in posts {
+        for tag in &post.tags {
+            let lower = tag.to_lowercase();
+            if !tags.iter().any(|t| t.eq_ignore_ascii_case(&lower)) {
+                tags.push(tag.clone());
+            }
+        }
+    }
+    tags.sort_by_key(|t| t.to_lowercase());
+    tags
+}
+
+fn filter_posts_by_tag(posts: Vec<Post>, tag: &str) -> Vec<Post> {
+    posts
+        .into_iter()
+        .filter(|p| p.tags.iter().any(|t| t.eq_ignore_ascii_case(tag)))
+        .collect()
+}
+
+pub async fn blog(
+    State(state): State<AppState>,
+    Query(query): Query<BlogQuery>,
+    headers: HeaderMap,
+) -> Response {
+    let is_hx = headers.get("hx-request").is_some();
+
+    let all_posts = state.db.get_published_posts().await.unwrap_or_default();
+    let all_tags = collect_all_tags(&all_posts);
+
+    let posts = match &query.tag {
+        Some(tag) => filter_posts_by_tag(all_posts, tag),
+        None => all_posts,
     };
-    HtmlTemplate(template)
+    let total = posts.len();
+    let page = query.page.unwrap_or(1).max(1);
+    let start = (page - 1).saturating_mul(BLOG_POSTS_PER_PAGE);
+    let has_more = start + BLOG_POSTS_PER_PAGE < total;
+    let page_posts: Vec<Post> = posts
+        .into_iter()
+        .skip(start)
+        .take(BLOG_POSTS_PER_PAGE)
+        .collect();
+
+    if is_hx {
+        if query.page.is_some() {
+            return HtmlTemplate(templates::BlogMore {
+                posts: page_posts,
+                has_more,
+                next_page: page + 1,
+            })
+            .into_response();
+        }
+        return HtmlTemplate(templates::BlogContent {
+            title: "Blog".to_string(),
+            posts: page_posts,
+            has_more,
+            next_page: page + 1,
+            active_tag: query.tag,
+            all_tags,
+        })
+        .into_response();
+    }
+
+    HtmlTemplate(templates::Blog {
+        title: "Blog".to_string(),
+        posts: page_posts,
+        has_more,
+        next_page: page + 1,
+        active_tag: query.tag,
+        all_tags,
+        site: state.config.site.clone(),
+    })
+    .into_response()
 }
 
 pub async fn post_detail(
@@ -108,7 +188,7 @@ pub async fn contact(State(state): State<AppState>) -> impl IntoResponse {
     HtmlTemplate(template)
 }
 
-fn render_markdown(content: &str) -> String {
+pub(crate) fn render_markdown(content: &str) -> String {
     let content = content.replace("](Video:", "](video:");
 
     let mut options = Options::empty();
@@ -129,7 +209,7 @@ pub async fn to_404(State(state): State<AppState>, uri: Uri) -> impl IntoRespons
         uri: uri.to_string(),
         site: state.config.site.clone(),
     };
-    HtmlTemplate(template)
+    (axum::http::StatusCode::NOT_FOUND, HtmlTemplate(template))
 }
 
 struct HtmlTemplate<T>(T);
@@ -188,7 +268,30 @@ pub mod templates {
     pub struct Blog {
         pub title: String,
         pub posts: Vec<Post>,
+        pub has_more: bool,
+        pub next_page: usize,
+        pub active_tag: Option<String>,
+        pub all_tags: Vec<String>,
         pub site: SiteParams,
+    }
+
+    #[derive(Template)]
+    #[template(path = "blog/_content.html")]
+    pub struct BlogContent {
+        pub title: String,
+        pub posts: Vec<Post>,
+        pub has_more: bool,
+        pub next_page: usize,
+        pub active_tag: Option<String>,
+        pub all_tags: Vec<String>,
+    }
+
+    #[derive(Template)]
+    #[template(path = "blog/_more.html")]
+    pub struct BlogMore {
+        pub posts: Vec<Post>,
+        pub has_more: bool,
+        pub next_page: usize,
     }
 
     #[derive(Template)]

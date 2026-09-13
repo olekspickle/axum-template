@@ -1,0 +1,18 @@
+{% for member in members %}
+                            <tr>
+                                <td class="px-6 py-4">
+                                    {% if let Some(url) = member.photo_url %}{% if !url.trim().is_empty() %}<img src="{{ url }}" alt="{{ member.name }}" class="w-12 h-12 rounded-full object-cover">
+                                    {% else %}<div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">{{ member.name[..1] }}</div>
+                                    {% endif %}{% else %}
+                                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">{{ member.name[..1] }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4">{{ member.name }}</td>
+                                <td class="px-6 py-4">{{ member.role }}</td>
+                                <td class="px-6 py-4">
+                                    <button type="button" hx-delete="/admin/team/{{ member.id }}" hx-confirm="Delete this team member?" hx-swap="none" hx-on::after-request="if(event.detail.successful){this.closest('tr').remove()}else{alert('Delete failed: ' + event.detail.xhr.status)}" class="text-red-600 hover:underline">Delete</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="px-6 py-4 text-gray-500">No matching team members</td></tr>
+                            {% endfor %}

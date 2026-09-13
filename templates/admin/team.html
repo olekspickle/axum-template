@@ -12,6 +12,7 @@
                     <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
                     <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                    <button type="button" hx-post="/admin/logout" class="block w-full text-left py-2 px-4 rounded hover:bg-gray-700 text-gray-400">Logout</button>
                 </nav>
             </aside>
 
@@ -48,6 +49,13 @@
                 </div>
 
                 {% if !members.is_empty() %}
+                <div class="mb-4">
+                    <input type="search" name="q" placeholder="Search team members..."
+                        hx-get="/admin/team/search" hx-trigger="input changed delay:300ms"
+                        hx-target="#team-tbody" hx-swap="innerHTML"
+                        class="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg"
+                        autocomplete="off">
+                </div>
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <table class="min-w-full">
                         <thead class="bg-gray-50">
@@ -58,26 +66,8 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {% for member in members %}
-                            <tr>
-                                <td class="px-6 py-4">
-                                    {% if let Some(url) = member.photo_url %}
-                                    <img src="{{ url }}" alt="{{ member.name }}" class="w-12 h-12 rounded-full object-cover">
-                                    {% else %}
-                                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">{{ member.name[..1] }}</div>
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4">{{ member.name }}</td>
-                                <td class="px-6 py-4">{{ member.role }}</td>
-                                <td class="px-6 py-4">
-                                    <form method="POST" action="/admin/team/{{ member.id }}" class="inline">
-                                        <input type="hidden" name="_method" value="DELETE">
-                                        <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Delete this team member?')">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="team-tbody" class="divide-y divide-gray-200">
+                            {% include "_team-rows.html" %}
                         </tbody>
                     </table>
                 </div>

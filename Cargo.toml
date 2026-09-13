@@ -28,6 +28,7 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["tokio", "server"] }
 pulldown-cmark = "0.13"
 rustls = "0.23.15"
+rustls-pki-types = "1"
 sha2 = "0.11.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -46,7 +47,6 @@ uuid = { version = "1", features = ["v4", "serde"] }
 utoipa = { version = "5.4.0", features = ["chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 zip = { version = "8", default-features = false, features = ["aes-crypto"] }
-rustls-pki-types = "1"
 
 [dev-dependencies]
 tower = "0.5"

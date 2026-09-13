@@ -1,0 +1,38 @@
+<section class="py-16" id="blog-content">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-4">Blog</h1>
+        <div class="flex flex-wrap justify-center gap-2 mb-12">
+            <span class="text-sm text-gray-500 mr-2 self-center">Filter by tag:</span>
+            {% if active_tag.is_none() %}
+            <span class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full">All</span>
+            {% else %}
+            <button class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                    hx-get="/blog" hx-target="#blog-content" hx-swap="outerHTML" hx-push-url="true">All</button>
+            {% endif %}
+            {% for tag in all_tags %}
+                {% if active_tag.as_ref() == Some(&tag) %}
+                <span class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full">{{ tag }}</span>
+                {% else %}
+                <button class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                        hx-get="/blog" hx-vals='{"tag":"{{ tag }}"}' hx-target="#blog-content" hx-swap="outerHTML" hx-push-url="true">{{ tag }}</button>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% if !posts.is_empty() %}
+        <div id="blog-cards" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {% for post in posts %}
+            {% include "blog/_post-card.html" %}
+            {% endfor %}
+        </div>
+        <div id="blog-more" class="mt-10 text-center">
+            {% if has_more %}
+            <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    hx-get="/blog" hx-vals='{"page":{{ next_page }}}'
+                    hx-target="#blog-cards" hx-swap="beforeend">Load more posts</button>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="text-center text-gray-600">No posts yet.</p>
+        {% endif %}
+    </div>
+</section>

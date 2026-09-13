@@ -12,6 +12,7 @@
                     <a href="/admin/posts" class="block py-2 px-4 rounded hover:bg-gray-700">Posts</a>
                     <a href="/admin/team" class="block py-2 px-4 rounded hover:bg-gray-700">Team</a>
                     <a href="/" class="block py-2 px-4 rounded hover:bg-gray-700 text-gray-400">View Site</a>
+                    <button type="button" hx-post="/admin/logout" class="block w-full text-left py-2 px-4 rounded hover:bg-gray-700 text-gray-400">Logout</button>
                 </nav>
             </aside>
 
@@ -22,6 +23,13 @@
                 </div>
 
                 {% if !posts.is_empty() %}
+                <div class="mb-4">
+                    <input type="search" name="q" placeholder="Search posts..."
+                        hx-get="/admin/posts/search" hx-trigger="input changed delay:300ms"
+                        hx-target="#posts-tbody" hx-swap="innerHTML"
+                        class="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg"
+                        autocomplete="off">
+                </div>
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <table class="min-w-full">
                         <thead class="bg-gray-50">
@@ -32,24 +40,8 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {% for post in posts %}
-                            <tr>
-                                <td class="px-6 py-4">{{ post.title }}</td>
-                                <td class="px-6 py-4">{{ post.author }}</td>
-                                <td class="px-6 py-4">
-                                    {% if post.published %}
-                                    <span class="text-green-600">Yes</span>
-                                    {% else %}
-                                    <span class="text-gray-400">No</span>
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 space-x-2">
-                                    <a href="/admin/posts/{{ post.slug }}" class="text-indigo-600 hover:underline">Edit</a>
-                                    <button type="button" onclick="deletePost('{{ post.id }}')" class="text-red-600 hover:underline">Delete</button>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="posts-tbody" class="divide-y divide-gray-200">
+                            {% include "_post-rows.html" %}
                         </tbody>
                     </table>
                 </div>
@@ -59,6 +51,5 @@
             </main>
         </div>
 
-        <script src="/static/js/admin.js"></script>
-    </body>
+        </body>
 </html>
