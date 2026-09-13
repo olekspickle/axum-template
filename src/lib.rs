@@ -19,7 +19,9 @@ use axum::{
     middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
 };
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    compression::CompressionLayer, services::ServeDir, trace::TraceLayer,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -55,5 +57,6 @@ pub fn app_router(state: AppState) -> Router<()> {
         .layer(TraceLayer::new_for_http())
         .layer(from_fn(middleware::custom_log))
         .layer(from_fn_with_state(state.clone(), middleware::rate_limit))
+        .layer(CompressionLayer::new())
         .with_state(state)
 }

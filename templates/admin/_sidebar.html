@@ -1,0 +1,37 @@
+<aside id="admin-sidebar" class="w-64 bg-gray-800 text-white p-6 flex flex-col shrink-0 transition-all">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <h2 id="sidebar-title" class="text-xl font-bold mb-8">Admin Panel</h2>
+    <nav id="sidebar-nav" class="space-y-4">
+        <a href="/admin" title="Dashboard" class="flex items-center gap-3 py-2 px-4 rounded hover:bg-gray-700">
+            <i class="fa-solid fa-gauge-high fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">Dashboard</span>
+        </a>
+        <a href="/admin/projects" title="Projects" class="flex items-center gap-3 py-2 px-4 rounded hover:bg-gray-700">
+            <i class="fa-solid fa-layer-group fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">Projects</span>
+        </a>
+        <a href="/admin/posts" title="Posts" class="flex items-center gap-3 py-2 px-4 rounded hover:bg-gray-700">
+            <i class="fa-solid fa-newspaper fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">Posts</span>
+        </a>
+        <a href="/admin/team" title="Team" class="flex items-center gap-3 py-2 px-4 rounded hover:bg-gray-700">
+            <i class="fa-solid fa-users fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">Team</span>
+        </a>
+        <a href="/" title="View Site" class="flex items-center gap-3 py-2 px-4 rounded hover:bg-gray-700 text-gray-400">
+            <i class="fa-solid fa-globe fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">View Site</span>
+        </a>
+        <button type="button" hx-post="/admin/logout" title="Logout" class="flex items-center gap-3 w-full text-left py-2 px-4 rounded hover:bg-gray-700 text-gray-400">
+            <i class="fa-solid fa-right-from-bracket fa-fw" aria-hidden="true"></i>
+            <span class="sidebar-label">Logout</span>
+        </button>
+    </nav>
+    <div id="sidebar-footer" class="flex mt-auto justify-end pt-4">
+        <button type="button" id="sidebar-toggle" title="Minimize sidebar"
+                class="text-gray-400 hover:text-white">
+            <i class="fa-solid fa-angles-left transition-transform" aria-hidden="true"></i>
+        </button>
+    </div>
+    <script src="/static/js/sidebar.js"></script>
+</aside>

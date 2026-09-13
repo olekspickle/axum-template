@@ -8,6 +8,10 @@ cert: # Generate self-signed SSL certificate for local HTTPS
         -subj "/CN=localhost" \
         -addext "subjectAltName = DNS:localhost"
 
+css: # Compile Tailwind CSS (requires node; rerun after editing templates/static/js classes)
+    npm install
+    npm run build:css
+
 lint:
     cargo clippy -- -D warnings
     cargo fmt --all -- --check

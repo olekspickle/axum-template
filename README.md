@@ -45,6 +45,9 @@ just run-surreal
 ```
 You can peek into justfile for build details
 
+The compiled Tailwind stylesheet (`static/css/tailwind.css`) is committed, so the site works out of the box.
+After editing classes in `templates/` or `static/js/`, rebuild it with `just css` (requires node).
+
 ### Configuration
 Edit `config.toml` to configure:
 - Server host/port
