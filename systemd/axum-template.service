@@ -9,6 +9,9 @@ User=axum-template
 Group=axum-template
 WorkingDirectory=/opt/axum-template
 
+# Secrets (ADMIN_PASSWORD, SURREAL_PASSWORD); created by systemd/setup.sh
+EnvironmentFile=-/etc/axum-template.env
+
 # Path to the binary
 ExecStart=/opt/axum-template/axum-template
 

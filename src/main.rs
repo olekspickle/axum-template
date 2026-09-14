@@ -94,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         token_manager: token_manager.clone(),
         required_role: Role::User,
         rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+        media_index: Arc::new(RwLock::new(None)),
         https,
     };
 

@@ -40,8 +40,8 @@
     <!--<meta name="google-site-verification" content="7777777xxxx777777x7x777x77777x777777777x777">-->
     <!-- HTMX -->
     <script src="/static/js/htmx.js" defer=""></script>
-    <!-- Tailwind + Typography -->
-    <script src="/static/js/tailwind-typography.js"></script>
+    <!-- Tailwind + Typography (compiled via `just css` / `npm run build:css`) -->
+    <link rel="stylesheet" href="/static/css/tailwind.css">
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/custom.css">
     {% raw %}{% if title=="[404]" %}{% endraw %}

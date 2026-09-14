@@ -50,19 +50,22 @@ pub fn router(state: AppState) -> Router<AppState> {
         .route("/posts/search", get(admin_search_posts))
         .route("/posts/new", get(admin_new_post))
         .route("/posts/{slug}", get(admin_edit_post))
-        .route("/upload", post(upload_media))
         .route("/team", get(admin_team_list))
         .route("/team", post(admin_create_team_member))
         .route("/team/search", get(admin_search_team))
         .route("/team/{id}", delete(admin_delete_team_member))
         .route("/logout", post(admin_logout))
         .route("/preview", post(admin_preview))
+        // Only this route opts out of the global body limit.
+        .merge(
+            Router::<AppState>::new()
+                .route("/upload", post(upload_media))
+                .layer(DefaultBodyLimit::disable())
+                .layer(RequestBodyLimitLayer::new(MAX_UPLOAD_BYTES)),
+        )
         .layer(from_fn_with_state(state, middleware::require_role));
 
-    public
-        .merge(protected)
-        .layer(DefaultBodyLimit::disable())
-        .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024)) // 250Mb per file limit
+    public.merge(protected)
 }
 
 #[derive(Deserialize)]
@@ -121,7 +124,10 @@ pub async fn login(
     }
 
     tracing::warn!(username = %form.username, "login failed: invalid credentials");
-    Html(r#"<div id="error-message" class="text-red-600 text-sm">Invalid credentials</div>"#)
+    (
+        StatusCode::UNAUTHORIZED,
+        Html(r#"<div id="error-message" class="text-red-600 text-sm">Invalid credentials</div>"#),
+    )
         .into_response()
 }
 
@@ -484,21 +490,64 @@ pub async fn admin_logout(
     response
 }
 
+/// Per-request cap for the upload route. The admin UI posts one file at a time.
+const MAX_UPLOAD_BYTES: usize = 250 * 1024 * 1024;
+
+/// Extensions we are willing to write and later serve from our own origin.
+/// `svg`/`html` are deliberately absent - both can execute script.
+const ALLOWED_UPLOAD_EXT: [&str; 9] = [
+    "jpg", "jpeg", "png", "gif", "webp", "avif", "mp4", "webm", "mov",
+];
+
+/// Upload names end up in a filesystem path, so reduce them to a flat safe token.
+fn sanitize_slug(slug: &str) -> String {
+    let cleaned: String = slug
+        .chars()
+        .map(|c| match c {
+            'a'..='z' | '0'..='9' | '-' | '_' => c,
+            'A'..='Z' => c.to_ascii_lowercase(),
+            _ => '-',
+        })
+        .take(64)
+        .collect();
+
+    let cleaned = cleaned.trim_matches('-').to_string();
+    if cleaned.is_empty() {
+        "upload".to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn upload_error(status: StatusCode, message: &str) -> (StatusCode, axum::Json<serde_json::Value>) {
+    (
+        status,
+        axum::Json(serde_json::json!({ "success": false, "error": message })),
+    )
+}
+
 pub async fn upload_media(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
     let mut slug = String::new();
     let mut file_count: u32 = 0;
     let mut upload_count: u32 = 0;
 
-    let hash_map = build_hash_map();
+    loop {
+        let field = match multipart.next_field().await {
+            Ok(Some(field)) => field,
+            Ok(None) => break,
+            Err(e) => {
+                tracing::warn!(error = %e, "malformed multipart upload");
+                return upload_error(StatusCode::BAD_REQUEST, "malformed multipart body");
+            }
+        };
 
-    while let Some(field) = multipart.next_field().await.expect("invalid multipart") {
         let name = field.name().unwrap_or_default().to_string();
 
         if name == "slug" {
-            slug = field.text().await.unwrap_or_default();
+            slug = sanitize_slug(&field.text().await.unwrap_or_default());
         } else if name == "file_count" {
             if let Ok(text) = field.text().await
                 && let Ok(count) = text.parse()
@@ -506,15 +555,20 @@ pub async fn upload_media(
                 file_count = count;
             }
         } else if name == "file" {
-            let Some(filename) = field.file_name() else {
+            let Some(filename) = field.file_name().map(str::to_string) else {
                 continue;
             };
 
-            let ext = StdPath::new(filename)
+            let ext = StdPath::new(&filename)
                 .extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase())
-                .unwrap_or_else(|| "bin".to_string());
+                .unwrap_or_default();
+
+            if !ALLOWED_UPLOAD_EXT.contains(&ext.as_str()) {
+                tracing::warn!(%filename, %ext, "rejected upload: extension not allowed");
+                return upload_error(StatusCode::UNSUPPORTED_MEDIA_TYPE, "file type not allowed");
+            }
 
             let Ok(data) = field.bytes().await else {
                 continue;
@@ -522,7 +576,7 @@ pub async fn upload_media(
 
             let hash = hex::encode(Sha256::digest(&data));
 
-            if let Some(existing_path) = hash_map.get(&hash) {
+            if let Some(existing_path) = media_index_lookup(&state, &hash).await {
                 tracing::info!(path = %existing_path, hash = %hash, "file already exists");
                 return (
                     StatusCode::OK,
@@ -535,22 +589,49 @@ pub async fn upload_media(
                 );
             }
 
-            let mut n = file_count + upload_count;
-            let mut final_path;
-            loop {
-                final_path = format!("static/media/{}/{}-{}.{}", format_dir(&ext), slug, n, ext);
-                if !std::path::Path::new(&final_path).exists() {
-                    break;
-                }
-                n += 1;
+            let slug = if slug.is_empty() {
+                "upload".to_string()
+            } else {
+                slug.clone()
+            };
+            let dir = StdPath::new("static/media").join(format_dir(&ext));
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                tracing::error!(error = %e, dir = %dir.display(), "failed to create media dir");
+                return upload_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to store file");
             }
 
-            let _ = std::fs::write(&final_path, &data)
-                .map(|_| {
-                    tracing::info!(path = %final_path, hash = %hash, "uploaded media");
+            let mut n = file_count.saturating_add(upload_count);
+            let mut final_path = dir.join(format!("{slug}-{n}.{ext}"));
+            let mut attempts = 0;
+            while final_path.exists() {
+                n = n.saturating_add(1);
+                attempts += 1;
+                if attempts > 10_000 {
+                    return upload_error(
+                        StatusCode::CONFLICT,
+                        "could not find a free filename for this slug",
+                    );
+                }
+                final_path = dir.join(format!("{slug}-{n}.{ext}"));
+            }
+
+            let path = final_path.clone();
+            let write = tokio::task::spawn_blocking(move || std::fs::write(&path, &data)).await;
+            match write {
+                Ok(Ok(())) => {
+                    tracing::info!(path = %final_path.display(), hash = %hash, "uploaded media");
                     upload_count += 1;
-                })
-                .inspect_err(|e| tracing::error!(error = %e, "failed to write file"));
+                    media_index_insert(&state, hash, final_path.display().to_string()).await;
+                }
+                Ok(Err(e)) => {
+                    tracing::error!(error = %e, "failed to write file");
+                    return upload_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to store file");
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "upload task failed");
+                    return upload_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to store file");
+                }
+            }
         }
     }
 
@@ -572,9 +653,30 @@ fn format_dir(ext: &str) -> &'static str {
     }
 }
 
-fn build_hash_map() -> std::collections::HashMap<String, String> {
-    let mut map = std::collections::HashMap::new();
-    let media_dir = std::path::Path::new("static/media");
+/// Look a digest up in the media index, building it once on first use instead of
+/// re-reading every media file on every upload.
+async fn media_index_lookup(state: &AppState, hash: &str) -> Option<String> {
+    if let Some(index) = state.media_index.read().await.as_ref() {
+        return index.get(hash).cloned();
+    }
+
+    let built = tokio::task::spawn_blocking(scan_media_dir)
+        .await
+        .unwrap_or_default();
+    let found = built.get(hash).cloned();
+    *state.media_index.write().await = Some(built);
+    found
+}
+
+async fn media_index_insert(state: &AppState, hash: String, path: String) {
+    if let Some(index) = state.media_index.write().await.as_mut() {
+        index.insert(hash, path);
+    }
+}
+
+fn scan_media_dir() -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    let media_dir = StdPath::new("static/media");
 
     if let Ok(entries) = std::fs::read_dir(media_dir) {
         for entry in entries.flatten() {
@@ -618,29 +720,28 @@ pub async fn forgot_password(
 ) -> impl IntoResponse {
     // Check if user exists (admin or team member)
     let is_admin = state.config.auth.admin_username == form.username;
-    let is_team = state
-        .db
-        .get_team_member(&form.username)
-        .await
-        .ok()
-        .flatten()
-        .is_some();
+    let is_team = matches!(state.db.get_team_member(&form.username).await, Ok(Some(_)));
 
     if is_admin || is_team {
         let reset_token = state
             .token_manager
             .generate_reset_token(&form.username)
             .await;
-        tracing::info!(username = %form.username, token = %reset_token, "password reset requested");
-        // In production: send email with reset link
-        // For now, return token in response (dev only)
-        return Html(format!(
-            r#"<div id="success-message" class="text-green-600 text-sm">Password reset requested (Dev: {reset_token})</div>"#
-        ))
-        .into_response();
+        // The token is a credential: it goes to the account owner over a side channel,
+        // never back to whoever submitted this form. Wire an email sender here; until
+        // then debug builds print it to the server console for local testing.
+        if cfg!(debug_assertions) {
+            tracing::info!(
+                username = %form.username,
+                reset_url = %format!("/admin/reset-password?token={reset_token}"),
+                "password reset requested (debug build only)"
+            );
+        } else {
+            tracing::info!(username = %form.username, "password reset requested");
+        }
     }
 
-    // Always return success to prevent username enumeration
+    // Same response either way, so the form can't be used to enumerate usernames.
     Html(
         r#"<div id="success-message" class="text-green-600 text-sm">If account exists, reset instructions sent</div>"#,
     )
@@ -665,47 +766,62 @@ pub async fn reset_password_page(
     HtmlTemplate(template)
 }
 
+/// Long enough that an offline guess against the argon2 hash is not worthwhile.
+const MIN_PASSWORD_LEN: usize = 12;
+
 pub async fn reset_password(
     State(state): State<AppState>,
     Form(form): Form<ResetPasswordForm>,
 ) -> impl IntoResponse {
     if form.new_password != form.confirm_password {
-        return Html(
-            r#"<div id="error-message" class="text-red-600 text-sm">Passwords do not match</div>"#,
-        )
-        .into_response();
+        return error_fragment("Passwords do not match");
     }
 
-    if let Some(username) = state.token_manager.consume_reset_token(&form.token).await {
-        // Admin credentials come from config.toml / ADMIN_PASSWORD env, not the DB — no in-memory reset
-        if state.config.auth.admin_username == username {
-            return error_fragment(
-                "Admin password is managed in config.toml / ADMIN_PASSWORD env — edit it and restart",
-            );
-        }
-
-        if state.db.get_team_member(&username).await.is_ok() {
-            let hash = Argon2::default();
-            let hash = hash.hash_password(form.new_password.as_bytes()).unwrap();
-            state
-                .db
-                .update_team_member_password(&username, &hash.to_string())
-                .await
-                .expect("Failed to update password");
-        }
-
-        tracing::info!(username = %username, "password reset successful");
-        return (
-            StatusCode::OK,
-            [(HeaderName::from_static("hx-redirect"), "/login")],
-        )
-            .into_response();
+    if form.new_password.chars().count() < MIN_PASSWORD_LEN {
+        return error_fragment(&format!(
+            "Password must be at least {MIN_PASSWORD_LEN} characters"
+        ));
     }
 
-    Html(
-        r#"<div id="error-message" class="text-red-600 text-sm">Invalid or expired reset token</div>"#,
+    let Some(username) = state.token_manager.consume_reset_token(&form.token).await else {
+        return error_fragment("Invalid or expired reset token");
+    };
+
+    // Admin credentials come from config.toml / ADMIN_PASSWORD env, not the DB - no in-memory reset
+    if state.config.auth.admin_username == username {
+        return error_fragment(
+            "Admin password is managed in config.toml / ADMIN_PASSWORD env - edit it and restart",
+        );
+    }
+
+    match state.db.get_team_member(&username).await {
+        Ok(Some(_)) => {}
+        Ok(None) => return error_fragment("Invalid or expired reset token"),
+        Err(e) => {
+            tracing::error!(error = %e, "password reset lookup failed");
+            return error_fragment("Could not reset password, try again later");
+        }
+    }
+
+    let hash = match Argon2::default().hash_password(form.new_password.as_bytes()) {
+        Ok(hash) => hash.to_string(),
+        Err(e) => {
+            tracing::error!(error = %e, "password hashing failed");
+            return error_fragment("Could not reset password, try again later");
+        }
+    };
+
+    if let Err(e) = state.db.update_team_member_password(&username, &hash).await {
+        tracing::error!(error = %e, "failed to store new password");
+        return error_fragment("Could not reset password, try again later");
+    }
+
+    tracing::info!(username = %username, "password reset successful");
+    (
+        StatusCode::OK,
+        [(HeaderName::from_static("hx-redirect"), "/login")],
     )
-    .into_response()
+        .into_response()
 }
 
 struct HtmlTemplate<T>(T);
@@ -805,5 +921,42 @@ pub mod admin_templates {
     pub struct ResetPassword {
         pub title: String,
         pub token: String,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slugs_cannot_escape_the_media_directory() {
+        assert_eq!(sanitize_slug("../../etc/cron.d/pwn"), "etc-cron-d-pwn");
+        assert_eq!(sanitize_slug("../.."), "upload");
+        assert_eq!(sanitize_slug("a/b\\c"), "a-b-c");
+        assert_eq!(sanitize_slug(""), "upload");
+
+        for slug in ["../../etc/passwd", "..", "foo/../../bar", "%2e%2e/x"] {
+            let sanitized = sanitize_slug(slug);
+            assert!(!sanitized.contains('/'), "{slug} -> {sanitized}");
+            assert!(!sanitized.contains('\\'), "{slug} -> {sanitized}");
+            assert!(!sanitized.contains(".."), "{slug} -> {sanitized}");
+        }
+    }
+
+    #[test]
+    fn slugs_keep_ordinary_names() {
+        assert_eq!(sanitize_slug("My Post Title"), "my-post-title");
+        assert_eq!(sanitize_slug("release_v1-2"), "release_v1-2");
+    }
+
+    #[test]
+    fn only_known_media_types_are_accepted() {
+        assert!(ALLOWED_UPLOAD_EXT.contains(&"png"));
+        for dangerous in ["html", "svg", "php", "js", "bin"] {
+            assert!(
+                !ALLOWED_UPLOAD_EXT.contains(&dangerous),
+                "{dangerous} must not be uploadable"
+            );
+        }
     }
 }

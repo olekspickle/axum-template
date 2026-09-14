@@ -4,3 +4,7 @@
 WIP.md
 *posts.db
 node_modules
+*.db
+cert.pem
+key.pem
+*.env

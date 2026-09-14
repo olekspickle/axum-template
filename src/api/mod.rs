@@ -24,18 +24,26 @@ use crate::state::AppState;
 )]
 pub struct ApiDoc;
 
-pub fn router() -> axum::Router<AppState> {
-    use axum::routing::{delete, get, patch, post};
+/// Read-only endpoints: any authenticated caller.
+pub fn read_router() -> axum::Router<AppState> {
+    use axum::routing::get;
 
     axum::Router::new()
         .route("/v1/projects", get(projects::list_projects))
-        .route("/v1/projects", post(projects::create_project))
         .route("/v1/projects/{id}", get(projects::get_project))
+        .route("/v1/posts", get(posts::list_posts))
+        .route("/v1/posts/{id}", get(posts::get_post))
+}
+
+/// Mutating endpoints: Editor or above.
+pub fn write_router() -> axum::Router<AppState> {
+    use axum::routing::{delete, patch, post};
+
+    axum::Router::new()
+        .route("/v1/projects", post(projects::create_project))
         .route("/v1/projects/{id}", patch(projects::update_project))
         .route("/v1/projects/{id}", delete(projects::delete_project))
-        .route("/v1/posts", get(posts::list_posts))
         .route("/v1/posts", post(posts::create_post))
-        .route("/v1/posts/{id}", get(posts::get_post))
         .route("/v1/posts/{id}", patch(posts::update_post))
         .route("/v1/posts/{id}", delete(posts::delete_post))
 }

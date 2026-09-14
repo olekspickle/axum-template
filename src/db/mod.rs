@@ -40,6 +40,8 @@ pub trait Db: Send + Sync {
     async fn get_published_posts(&self) -> Result<Vec<Post>>;
     async fn get_post(&self, id: &str) -> Result<Option<Post>>;
     async fn get_post_by_slug(&self, slug: &str) -> Result<Option<Post>>;
+    /// Same as [`Db::get_post_by_slug`] but never returns drafts - use it on public routes.
+    async fn get_published_post_by_slug(&self, slug: &str) -> Result<Option<Post>>;
     async fn update_post(&self, id: &str, post: NewPost) -> Result<()>;
     async fn delete_post(&self, id: &str) -> Result<()>;
 

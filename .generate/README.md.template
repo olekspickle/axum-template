@@ -38,12 +38,51 @@ just run-surreal
 
 You can peek into `justfile` for build details.
 
+The compiled Tailwind stylesheet (`static/css/tailwind.css`) is committed, so the site works out of the box.
+After editing classes in `templates/` or `static/js/`, rebuild it with `just css` (requires node).
+
 ## Configuration
 Edit `config.toml` to configure:
 - Server host/port
 - Database path
 - Admin credentials (password is argon2 hashed)
 - Site name and tagline
+
+#### Security checklist before exposing the server
+- **Set `ADMIN_PASSWORD`** and delete `admin_password` from `config.toml`. The value in
+  the file is a dev convenience; the server logs a warning whenever it falls back to it.
+  With the SurrealDB backend, set `SURREAL_PASSWORD` the same way.
+- **Set `server.trusted_proxy = true` only behind a proxy you control** (nginx, cloudflared).
+  It makes login rate limiting trust `X-Real-IP`/`X-Forwarded-For`; with it on and nothing
+  in front, clients can pick their own rate limit bucket.
+- **Keep `posts.db`, `cert.pem` and `key.pem` out of git.** The database holds password
+  hashes and session records.
+- **Provide `cert.pem`/`key.pem`** to serve HTTPS. Their presence also flips the auth cookie
+  to `Secure` and enables HSTS.
+- Password reset tokens are never returned in the HTTP response. Wire an email sender into
+  `forgot_password`; debug builds log the reset link to the server console for local testing.
+
+#### Authorization
+Routes resolve against the role in the session token:
+- `User` (any authenticated team member) - read-only API endpoints.
+- `Editor` - the mutating API endpoints as well.
+- `Admin` - the admin panel, uploads and the Swagger UI / OpenAPI schema.
+
+A team member's role comes from their `role` field; anything that isn't `Editor` or `Admin`
+is treated as `User`.
+
+#### Uploads
+`POST /admin/upload` accepts image and video files only (no SVG or HTML, both of which can
+execute script from this origin), and the `slug` field is reduced to a safe filename token,
+so uploads cannot escape `static/media/`.
+
+### Testing
+```bash
+just test          # sqlite backend + unit tests
+just test-surreal  # starts a throwaway SurrealDB in docker and runs the backend round-trips
+```
+The SurrealDB tests skip themselves when no server is reachable; point them elsewhere with
+`SURREAL_TEST_URL`.
 
 [cargo-generate]: https://github.com/cargo-generate/cargo-generate
 
@@ -80,24 +119,24 @@ Edit `config.toml` to configure:
    The script creates a system user, downloads cloudflared to
    `/opt/{{project-name}}/cf/`, creates symlinks at `/usr/local/bin/cloudflared`
    and `/usr/local/bin/cf`, and installs the app, config and systemd services.
-   Set the admin password in `config.toml` before deploying.
+   Then it handles the Cloudflare Tunnel itself: browser login (once), tunnel
+   create-or-reuse (idempotent — name collisions between duplicate tunnels are
+   detected and cleaned up by ID), credentials install, and DNS routing.
+   Set `ADMIN_PASSWORD` in `/etc/axum-template.env` before starting the service.
    Undo everything with `bash systemd/cleanup.sh`.
 
-4. **Configure Cloudflare Tunnel (one-time):**
+4. **Tunnel knobs** (all optional, sane defaults):
    ```bash
-   # Authenticate (browser flow), then copy the cert
-   sudo cf tunnel login
-   sudo cp /root/.cloudflared/cert.pem /opt/{{project-name}}/cf/
-
-   # Create tunnel, copy credentials, route DNS
-   sudo cf tunnel create {{project-name}}
-   sudo cp /root/.cloudflared/<tunnel-id>.json /opt/{{project-name}}/cf/{{project-name}}.json
-   sudo cf tunnel route dns {{project-name}} {{domain}}
-
-   # Start services
-   sudo systemctl start {{project-name}}.service
-   sudo systemctl start cloudflared.service
+   # Route DNS to a specific hostname (asked interactively if unset on a tty)
+   CF_HOSTNAME=www.example.com bash systemd/setup.sh
+   # Custom tunnel name / skip tunnel setup entirely
+   CF_TUNNEL_NAME=mysite CF_SKIP_TUNNEL=1 bash systemd/setup.sh
    ```
+   If DNS routing fails with code 1003, a stale A/AAAA/CNAME record for that
+   hostname already exists — delete it in the dashboard (DNS → Records) and
+   re-run, or use an unused subdomain. Re-running the script is safe: it
+   reuses the existing tunnel and patches `config.yml` + the service file to
+   match.
 
 Systemd service files are in [`systemd/`](./systemd/)
 

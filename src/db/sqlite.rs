@@ -71,6 +71,24 @@ impl SqliteDb {
         }
     }
 
+    /// Schema changes after the initial `CREATE TABLE IF NOT EXISTS` - those are
+    /// no-ops on an existing database, so anything added later belongs here.
+    async fn migrate(&self) -> Result<()> {
+        // Logins and password resets look team members up by name, so it has to be unique.
+        sqlx::query(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_team_members_name ON team_members(name)",
+        )
+        .execute(&*self.pool)
+        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_tokens_expiry ON tokens(expiry)")
+            .execute(&*self.pool)
+            .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published)")
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
     fn team_member_row_to_member(row: SqliteRow) -> TeamMember {
         let github_url: Option<String> = row.get("github_url");
         let twitter_url: Option<String> = row.get("twitter_url");
@@ -162,6 +180,8 @@ impl Db for SqliteDb {
         )
         .execute(&*self.pool)
         .await?;
+
+        self.migrate().await?;
 
         Ok(())
     }
@@ -368,6 +388,17 @@ impl Db for SqliteDb {
     async fn get_post_by_slug(&self, slug: &str) -> Result<Option<Post>> {
         let row = sqlx::query(
             "SELECT id, title, slug, content, excerpt, cover_image, tags, author, published, created_at, updated_at FROM posts WHERE slug = ?1",
+        )
+        .bind(slug)
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        Ok(row.map(Self::post_row_to_post))
+    }
+
+    async fn get_published_post_by_slug(&self, slug: &str) -> Result<Option<Post>> {
+        let row = sqlx::query(
+            "SELECT id, title, slug, content, excerpt, cover_image, tags, author, published, created_at, updated_at FROM posts WHERE slug = ?1 AND published = 1",
         )
         .bind(slug)
         .fetch_optional(&*self.pool)

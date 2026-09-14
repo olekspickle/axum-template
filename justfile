@@ -17,6 +17,14 @@ lint:
     cargo fmt --all -- --check
     cargo machete
 
+test: # Run the test suite (surreal tests are skipped unless a server is reachable)
+    cargo test --all-targets
+
+test-surreal: # Round-trip the SurrealDB backend against a throwaway server
+    docker run -d --rm --name surreal-test -p 8000:8000 surrealdb/surrealdb:v3 start --user root --pass root memory
+    cargo test --no-default-features --features surreal --all-targets; \
+        docker stop surreal-test
+
 build-pi: # Native aarch64 build (requires gcc-aarch64-linux-gnu)
     cargo build --release --target aarch64-unknown-linux-gnu
 

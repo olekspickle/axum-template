@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[cfg(feature = "surreal")]
-use surrealdb::types::SurrealValue;
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
 pub struct NewProject {
     pub title: String,
@@ -17,9 +14,8 @@ pub struct NewProject {
     pub repo_url: Option<String>,
     pub featured: bool,
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
-#[cfg_attr(feature = "surreal", derive(SurrealValue))]
+
 pub struct Project {
     pub id: String,
     pub title: String,
@@ -38,18 +34,9 @@ pub struct Project {
 
 impl Project {
     pub fn created_at_formatted(&self) -> String {
-        if self.created_at.len() >= 10 {
-            return format!(
-                "{}-{}-{}",
-                &self.created_at[8..10],
-                &self.created_at[5..7],
-                &self.created_at[0..4]
-            );
-        }
-        self.created_at.clone()
+        format_rfc3339_date(&self.created_at)
     }
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
 pub struct NewPost {
     pub title: String,
@@ -61,9 +48,8 @@ pub struct NewPost {
     pub author: String,
     pub published: bool,
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema)]
-#[cfg_attr(feature = "surreal", derive(SurrealValue))]
+
 pub struct Post {
     pub id: String,
     pub title: String,
@@ -80,16 +66,15 @@ pub struct Post {
 
 impl Post {
     pub fn format_date(&self) -> String {
-        if self.created_at.len() >= 10 {
-            format!(
-                "{}-{}-{}",
-                &self.created_at[8..10],
-                &self.created_at[5..7],
-                &self.created_at[0..4]
-            )
-        } else {
-            self.created_at.clone()
-        }
+        format_rfc3339_date(&self.created_at)
+    }
+}
+/// `YYYY-MM-DD...` -> `DD-MM-YYYY`. Parsed rather than byte-sliced, so a value that
+/// isn't a timestamp is passed through instead of panicking on a char boundary.
+fn format_rfc3339_date(value: &str) -> String {
+    match chrono::DateTime::parse_from_rfc3339(value) {
+        Ok(dt) => dt.format("%d-%m-%Y").to_string(),
+        Err(_) => value.to_string(),
     }
 }
 
@@ -104,9 +89,8 @@ pub struct NewTeamMember {
     pub linkedin_url: Option<String>,
     pub password: Option<String>,
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[cfg_attr(feature = "surreal", derive(SurrealValue))]
+
 pub struct TeamMember {
     pub id: String,
     pub name: String,

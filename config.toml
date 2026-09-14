@@ -1,10 +1,14 @@
 [server]
 host = "0.0.0.0"
 port = 7777
+# Set to true only when a proxy you control (nginx, cloudflared) sits in front,
+# so X-Real-IP/X-Forwarded-For can be trusted for rate limiting.
+trusted_proxy = false
 
 [auth]
 token_ttl = 3600
 admin_username = "admin"
+# Dev fallback only. In production set the ADMIN_PASSWORD env var and delete this line.
 admin_password = "admin"
 
 [db]
@@ -12,8 +16,9 @@ path = "posts.db"
 
 [db.surreal]
 url = "ws://localhost:8000"
-user = "root"
-pass = "root"
+username = "root"
+# Dev fallback only. In production set the SURREAL_PASSWORD env var.
+password = "root"
 namespace = "studio"
 name = "portfolio"
 

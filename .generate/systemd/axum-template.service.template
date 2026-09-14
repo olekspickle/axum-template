@@ -9,6 +9,9 @@ User={{project-name}}
 Group={{project-name}}
 WorkingDirectory=/opt/{{project-name}}
 
+# Secrets (ADMIN_PASSWORD, SURREAL_PASSWORD); created by systemd/setup.sh
+EnvironmentFile=-/etc/{{project-name}}.env
+
 # Path to the binary
 ExecStart=/opt/{{project-name}}/{{project-name}}
 

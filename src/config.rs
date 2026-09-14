@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use serde::Deserialize;
-use serde_default_utils::{default_u16, default_u64, serde_inline_default};
+use serde_default_utils::{default_bool, default_u16, default_u64, serde_inline_default};
 
 use crate::middleware::hash_password;
 
@@ -21,6 +21,10 @@ pub struct ServerParams {
     pub host: String,
     #[serde(default = "default_u16::<7777>")]
     pub port: u16,
+    /// Only set when the server sits behind a proxy you control (nginx, cloudflared).
+    /// Enables trusting X-Real-IP/X-Forwarded-For for rate limiting.
+    #[serde(default = "default_bool::<false>")]
+    pub trusted_proxy: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -38,7 +42,7 @@ pub struct DbParams {
     #[cfg(feature = "sqlite")]
     pub path: String,
     #[cfg(feature = "surreal")]
-    #[serde(flatten)]
+    #[serde(default)]
     pub surreal: SurrealParams,
 }
 
@@ -57,6 +61,19 @@ pub struct SurrealParams {
     /// Database name
     #[serde_inline_default("portfolio".into())]
     pub name: String,
+}
+
+#[cfg(feature = "surreal")]
+impl Default for SurrealParams {
+    fn default() -> Self {
+        Self {
+            url: "ws://localhost:8000".into(),
+            username: "root".into(),
+            password: "root".into(),
+            namespace: "studio".into(),
+            name: "portfolio".into(),
+        }
+    }
 }
 
 #[serde_inline_default]
@@ -84,14 +101,20 @@ impl Config {
         let mut config: Config = toml::from_str(&config_str)?;
 
         // Admin password from env var (preferred) or config file (fallback for dev)
-        config.auth.admin_password = env::var("ADMIN_PASSWORD")
-            .ok()
-            .or(config.auth.admin_password);
-
-        if config.auth.admin_password.is_none() {
-            anyhow::bail!(
+        match env::var("ADMIN_PASSWORD") {
+            Ok(password) => config.auth.admin_password = Some(password),
+            Err(_) if config.auth.admin_password.is_some() => tracing::warn!(
+                "using admin_password from config.toml - set ADMIN_PASSWORD and remove it from the \
+                 file before exposing this server"
+            ),
+            Err(_) => anyhow::bail!(
                 "ADMIN_PASSWORD env var must be set (or set admin_password in config.toml for dev)"
-            );
+            ),
+        }
+
+        #[cfg(feature = "surreal")]
+        if let Ok(password) = env::var("SURREAL_PASSWORD") {
+            config.db.surreal.password = password;
         }
 
         Ok(config)

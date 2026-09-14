@@ -18,6 +18,16 @@ set -euo pipefail
 #      cd ~/deploy
 #      bash systemd/setup.sh
 #
+#      Optional env knobs (all pre-set to sane defaults):
+#        CF_TUNNEL_NAME=<name>     tunnel name (default: $APP)
+#        CF_HOSTNAME=<hostname>    hostname to route DNS to this tunnel;
+#                                  asked interactively if unset and on a tty
+#        CF_SKIP_TUNNEL=1          skip tunnel login/create/route entirely
+#
+#   Re-running is safe: an existing tunnel is reused, existing config.yml
+#   is patched (only tunnel + ingress hostname), and the installed
+#   cloudflared.service gets its `tunnel run <name>` realigned.
+#
 #   Undo everything with: bash systemd/cleanup.sh
 # ============================================================
 
@@ -31,9 +41,10 @@ BIN_PATH=$APP_DIR/{{project-name}}
 CF_DIR=$APP_DIR/cf
 CF_BIN=$CF_DIR/cloudflared
 CF_TUNNEL_NAME="${CF_TUNNEL_NAME:-$APP}"
+CF_HOSTNAME="${CF_HOSTNAME:-}"
 
 # Assets sit next to this script or one level up (rsync layout:
-# deploy/{ {{project-name}},config.toml,static,templates,systemd/ })
+# deploy/{ {{project-name}},config.toml,static,templates,systemd/})
 if [ -f "$SCRIPT_DIR/$APP" ]; then
     BASE_DIR="$SCRIPT_DIR"
 else
@@ -50,19 +61,50 @@ esac
 
 echo "============================================"
 echo "$APP + Cloudflare Tunnel Setup"
-echo "Arch: $ARCH"
+echo "Arch: $ARCH | tunnel: $CF_TUNNEL_NAME"
 echo "============================================"
 
-# --- user first: every chown below depends on it ---
+# ------------------------------------------------------------
+# Pure helpers. Input/output only — safe to test standalone.
+# `cf tunnel list` (without --show-deleted) prints non-deleted
+# tunnels
+# ------------------------------------------------------------
 
-echo "[1/5] Creating $APP system user..."
+# Print "<id> <created-iso>" for every non-deleted tunnel named $1.
+tunnels_named() {
+    local want="$1" id name created
+    while read -r id name created _; do
+        case "$id" in
+            *-*-*-*-*) ;;           # uuid-shaped row
+            *) continue ;;          # header line etc.
+        esac
+        [ "$name" = "$want" ] || continue
+        printf '%s %s\n' "$id" "$created"
+    done
+}
+
+# Newest matching tunnel (ISO-8601 created timestamps sort lexically).
+newest_line() {
+    sort -k2,2r | head -n1
+}
+
+# First uuid in a stream (parses `cf tunnel create` output).
+first_uuid() {
+    grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -n1
+}
+
+# ------------------------------------------------------------
+# [1/6] system user first: every chown below depends on it
+# ------------------------------------------------------------
+echo "[1/6] Creating $APP system user..."
 if ! id "$APP_USER" &>/dev/null; then
     sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 fi
 
-# --- cloudflared ---
-
-echo "[2/5] Installing cloudflared ($CF_ARCH)..."
+# ------------------------------------------------------------
+# [2/6] cloudflared binary
+# ------------------------------------------------------------
+echo "[2/6] Installing cloudflared ($CF_ARCH)..."
 sudo mkdir -p "$CF_DIR"
 if [ -f "$CF_BIN" ]; then
     echo "  already installed ($("$CF_BIN" --version))"
@@ -74,22 +116,127 @@ fi
 sudo ln -sf "$CF_BIN" /usr/local/bin/cloudflared
 sudo ln -sf "$CF_BIN" /usr/local/bin/cf
 
-echo "[3/5] Setting up cloudflared config..."
-if [ -f "$CF_DIR/config.yml" ]; then
-    echo "  $CF_DIR/config.yml exists — keeping it (remove it first to reset)"
-elif [ -f "$SCRIPT_DIR/cloudflared-config.yml" ]; then
-    sudo cp "$SCRIPT_DIR/cloudflared-config.yml" "$CF_DIR/config.yml"
+# ------------------------------------------------------------
+# [3/6] origin certificate (one-time browser login)
+# ------------------------------------------------------------
+echo "[3/6] Ensuring Cloudflare origin certificate..."
+if [ ! -f "$CF_DIR/cert.pem" ]; then
+    if [ -t 0 ]; then
+        echo "  cert.pem missing at $CF_DIR/cert.pem"
+        echo "  Starting one-time browser login:"
+        echo "    (open the printed URL, click Authorize, then come back)"
+        sudo "$CF_BIN" tunnel login
+        if [ -f /root/.cloudflared/cert.pem ]; then
+            sudo cp /root/.cloudflared/cert.pem "$CF_DIR/cert.pem"
+            echo "  cert installed."
+        else
+            echo "  WARNING: login did not produce /root/.cloudflared/cert.pem;"
+            echo "           tunnel create/route will fail until this happens."
+        fi
+    else
+        echo "  no tty and cert.pem missing — do this later:"
+        echo "      sudo $CF_BIN tunnel login"
+        echo "      sudo cp /root/.cloudflared/cert.pem $CF_DIR/cert.pem"
+    fi
+else
+    echo "  already present"
 fi
-sudo chown -R "$APP_USER:$APP_USER" "$CF_DIR"
-sudo chmod 700 "$CF_DIR"
 
-# --- {{project-name}} ---
+# ------------------------------------------------------------
+# [4/6] Cloudflare Tunnel: create/reuse/cleanup, credentials, DNS
+# ------------------------------------------------------------
+TUNNEL_ID=""
 
-echo "[4/5] Installing binary, assets and config..."
+if [ "${CF_SKIP_TUNNEL:-0}" = "1" ]; then
+    echo "[4/6] Skipping tunnel setup (CF_SKIP_TUNNEL=1)."
+else
+    echo "[4/6] Ensuring tunnel '$CF_TUNNEL_NAME' exists..."
+
+    # Ask for the DNS hostname up front (tty only). CF_HOSTNAME env wins.
+    if [ -z "$CF_HOSTNAME" ] && [ -t 0 ]; then
+        read -r -p "  Route DNS for which hostname (e.g. www.example.com)? []: " CF_HOSTNAME
+    fi
+
+    MATCHES="$(sudo "$CF_BIN" tunnel list 2>/dev/null | tunnels_named "$CF_TUNNEL_NAME" || true)"
+
+    if [ -z "$MATCHES" ]; then
+        echo "  none found — creating"
+        OUT="$(sudo "$CF_BIN" tunnel create "$CF_TUNNEL_NAME" 2>&1)"
+        echo "$OUT"
+        TUNNEL_ID="$(printf '%s\n' "$OUT" | first_uuid || true)"
+        if [ -z "$TUNNEL_ID" ]; then
+            echo "  ERROR: could not read the tunnel id from the output above."
+            if printf '%s\n' "$OUT" | grep -qi 'namespace\|permission\|cert'; then
+                echo "  Likely cause: the browser login in step [3/6] was skipped"
+                echo "  or the origin certificate is missing."
+            fi
+        fi
+    else
+        COUNT="$(printf '%s\n' "$MATCHES" | wc -l | tr -d ' ')"
+        if [ "$COUNT" -eq 1 ]; then
+            TUNNEL_ID="$(printf '%s\n' "$MATCHES" | awk '{print $1}')"
+            echo "  reusing existing: $TUNNEL_ID"
+        else
+            echo "  WARNING: $COUNT non-deleted tunnels named '$CF_TUNNEL_NAME':"
+            printf '%s\n' "$MATCHES" | sed 's/^/    /'
+            KEEP="$(printf '%s\n' "$MATCHES" | newest_line)"
+            TUNNEL_ID="$(printf '%s\n' "$KEEP" | awk '{print $1}')"
+            echo "  keeping newest: $TUNNEL_ID, deleting the rest:"
+            printf '%s\n' "$MATCHES" | sort -r | tail -n +2 | while read -r dup _; do
+                echo "    deleting $dup"
+                sudo "$CF_BIN" tunnel delete --force "$dup" || true
+            done
+        fi
+    fi
+
+    # Credentials JSON → CF_DIR (this is what credentials-file in config.yml points at)
+    if [ -n "$TUNNEL_ID" ] && [ ! -f "$CF_DIR/$CF_TUNNEL_NAME.json" ]; then
+        if [ -f "/root/.cloudflared/$TUNNEL_ID.json" ]; then
+            sudo cp "/root/.cloudflared/$TUNNEL_ID.json" "$CF_DIR/$CF_TUNNEL_NAME.json"
+            echo "  credentials installed: $CF_DIR/$CF_TUNNEL_NAME.json"
+        else
+            echo "  WARNING: /root/.cloudflared/$TUNNEL_ID.json not found."
+            echo "           Re-login (step [3/6]) and re-run, or copy the tunnel's"
+            echo "           credentials JSON here manually."
+        fi
+    fi
+
+    # DNS route. A pre-existing record for the hostname makes Cloudflare
+    # refuse with code 1003 — surfaced, not fatal: fix = delete the stale
+    # record in the dashboard and re-run, or pick an unused hostname.
+    if [ -n "$CF_HOSTNAME" ] && [ -n "$TUNNEL_ID" ]; then
+        echo "  routing DNS: $CF_HOSTNAME -> tunnel $CF_TUNNEL_NAME"
+        if sudo "$CF_BIN" tunnel route dns "$CF_TUNNEL_NAME" "$CF_HOSTNAME"; then
+            echo "  DNS route added."
+        else
+            echo "  WARNING: DNS route failed (an A/AAAA/CNAME record for"
+            echo "           '$CF_HOSTNAME' probably already exists)."
+            echo "    Fix A: dashboard → DNS → Records → delete the stale"
+            echo "           '$CF_HOSTNAME' entry → re-run this script."
+            echo "    Fix B: re-run with an unused subdomain:"
+            echo "           CF_HOSTNAME=app2.example.com bash systemd/setup.sh"
+            echo "  The tunnel itself is fine either way; only the DNS route"
+            echo "  is missing, so the site won't answer at that hostname yet."
+        fi
+    elif [ -n "$TUNNEL_ID" ]; then
+        echo "  (no CF_HOSTNAME given — DNS route skipped; add it in the"
+        echo "   'Next steps' below or re-run with CF_HOSTNAME=...)"
+    fi
+
+    if [ -n "$TUNNEL_ID" ]; then
+        echo "  tunnel ready: $TUNNEL_ID"
+    fi
+fi
+
+# ------------------------------------------------------------
+# [5/6] app binary, assets and config
+# ------------------------------------------------------------
+echo "[5/6] Installing binary, assets and config..."
 sudo mkdir -p "$APP_DIR"
 if [ -f "$BASE_DIR/$APP" ]; then
     sudo cp "$BASE_DIR/$APP" "$BIN_PATH"
     sudo chmod +x "$BIN_PATH"
+    echo "  binary installed: $BIN_PATH"
 else
     echo "  WARNING: $APP binary not found — place it manually at $BIN_PATH"
 fi
@@ -108,8 +255,56 @@ fi
 
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-echo "[5/5] Installing systemd services..."
+# Secrets live in an environment file the service reads, not in the world-readable
+# config.toml that ships with the app.
+ENV_FILE=/etc/$APP.env
+if [ ! -f "$ENV_FILE" ]; then
+    printf '# Required. The service refuses to start without it.\n#ADMIN_PASSWORD=\n' \
+        | sudo tee "$ENV_FILE" >/dev/null
+    echo "  created $ENV_FILE (set ADMIN_PASSWORD in it before starting the service)"
+fi
+sudo chown root:"$APP_USER" "$ENV_FILE"
+sudo chmod 640 "$ENV_FILE"
+
+# Cloudflared terminates the connection, so client IPs arrive in X-Forwarded-For.
+if [ -f "$APP_DIR/config.toml" ] && ! grep -q '^trusted_proxy' "$APP_DIR/config.toml"; then
+    sudo sed -i '/^\[server\]/a trusted_proxy = true' "$APP_DIR/config.toml"
+fi
+
+# Shipped config keeps a dev password; the env file is the real source.
+sudo sed -i '/^admin_password = /d' "$APP_DIR/config.toml" 2>/dev/null || true
+
+# ------------------------------------------------------------
+# [6/6] config.yml + systemd services
+# ------------------------------------------------------------
+echo "[6/6] Installing systemd services and $CF_DIR/config.yml..."
 INSTALL_DIR=/etc/systemd/system
+
+# config.yml — generated when missing, patched (tunnel + ingress hostname)
+# when present, so the DNS route and the configured hostname stay in sync.
+if [ ! -f "$CF_DIR/config.yml" ]; then
+    echo "  writing $CF_DIR/config.yml"
+    sudo tee "$CF_DIR/config.yml" >/dev/null <<EOF
+# Cloudflare Tunnel config for $APP (generated by systemd/setup.sh)
+# Path: $CF_DIR/config.yml
+
+tunnel: $CF_TUNNEL_NAME
+credentials-file: $CF_DIR/$CF_TUNNEL_NAME.json
+origin-cert: $CF_DIR/cert.pem
+
+ingress:
+  - hostname: ${CF_HOSTNAME:-change-me.example.com}
+    service: http://localhost:7777
+  # Catch-all — return 404 for unknown hostnames
+  - service: http_status:404
+EOF
+else
+    echo "  patching $CF_DIR/config.yml (tunnel + ingress hostname)"
+    sudo sed -i "s/^tunnel:.*$/tunnel: $CF_TUNNEL_NAME/" "$CF_DIR/config.yml"
+    if [ -n "$CF_HOSTNAME" ]; then
+        sudo sed -i "0,/hostname:/s//hostname: $CF_HOSTNAME/" "$CF_DIR/config.yml"
+    fi
+fi
 
 for svc in {{project-name}}.service cloudflared.service; do
     if [ -f "$SCRIPT_DIR/$svc" ]; then
@@ -119,9 +314,17 @@ for svc in {{project-name}}.service cloudflared.service; do
     fi
 done
 
+# cloudflared.service runs `tunnel run <name>` in ExecStart — force it to
+# match the tunnel this script created/reused, so a name mismatch (a real
+# deployment footgun) can't silently break the tunnel at boot.
+sudo sed -i "s/tunnel run .*/tunnel run $CF_TUNNEL_NAME/" "$INSTALL_DIR/cloudflared.service"
+
 sudo systemctl daemon-reload
 sudo systemctl enable {{project-name}}.service
 sudo systemctl enable cloudflared.service
+
+sudo chown -R "$APP_USER:$APP_USER" "$CF_DIR"
+sudo chmod 700 "$CF_DIR"
 
 echo ""
 echo "============================================"
@@ -130,26 +333,22 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Set a real admin password:"
-echo "       sudo \$EDITOR $APP_DIR/config.toml   # [auth] admin_password"
+echo "       sudo \$EDITOR $ENV_FILE   # ADMIN_PASSWORD=..."
 echo ""
-echo "  2. Authenticate cloudflared (one-time, browser flow):"
-echo "       sudo cf tunnel login"
-echo "       sudo cp /root/.cloudflared/cert.pem $CF_DIR/"
-echo ""
-echo "  3. Create tunnel, copy credentials, route DNS:"
-echo "       sudo cf tunnel create $CF_TUNNEL_NAME"
-echo "       # note <tunnel-id> in output, then:"
-echo "       sudo cp /root/.cloudflared/<tunnel-id>.json $CF_DIR/$CF_TUNNEL_NAME.json"
-echo "       sudo cf tunnel route dns $CF_TUNNEL_NAME {{domain}}"
-echo ""
-echo "  4. Check $CF_DIR/config.yml (hostname must match the DNS route):"
-echo "       sudo \$EDITOR $CF_DIR/config.yml"
-echo ""
-echo "  5. Start services:"
+echo "  2. Start your app FIRST and verify it's actually serving:"
 echo "       sudo systemctl start {{project-name}}.service"
-echo "       sudo systemctl start cloudflared.service"
+echo "       curl -s -o /dev/null -w '%{http_code}\n' http://localhost:7777/   # expect 200"
 echo ""
-echo "  6. Check status:"
-echo "       sudo journalctl -u {{project-name}} -f"
-echo "       sudo journalctl -u cloudflared -f"
+echo "  3. Start the tunnel:"
+echo "       sudo systemctl start cloudflared.service"
+echo "       sudo journalctl -u cloudflared -n 30"
+if [ -n "$CF_HOSTNAME" ]; then
+    echo "       curl -sI https://$CF_HOSTNAME   # expect 200"
+    echo "       # 404 = ingress hostname mismatch in config.yml"
+    echo "       # 502 = app not listening on :7777"
+else
+    echo "       # no DNS route was created — configure one:"
+    echo "       sudo cf tunnel route dns $CF_TUNNEL_NAME your-domain.com"
+    echo "       # then set the ingress hostname in $CF_DIR/config.yml to match"
+fi
 echo "============================================"

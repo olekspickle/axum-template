@@ -152,7 +152,13 @@ pub async fn post_detail(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    let post = state.db.get_post_by_slug(&slug).await.ok().flatten();
+    // Published only - drafts stay behind /admin even when the slug is known.
+    let post = state
+        .db
+        .get_published_post_by_slug(&slug)
+        .await
+        .ok()
+        .flatten();
     let content_html = post.as_ref().map(|p| render_markdown(&p.content));
 
     if let Some(post) = post {
@@ -188,7 +194,27 @@ pub async fn contact(State(state): State<AppState>) -> impl IntoResponse {
     HtmlTemplate(template)
 }
 
+/// Schemes a rendered link or image may use. Everything else (`javascript:`,
+/// `data:`, `vbscript:`, ...) is dropped so post content can't run script.
+const SAFE_URL_SCHEMES: [&str; 5] = ["http", "https", "mailto", "tel", "video"];
+
+fn is_safe_url(url: &str) -> bool {
+    let url = url.trim();
+    match url.split_once(':') {
+        // Relative path, anchor or query - no scheme to vet.
+        None => true,
+        // A colon after a path separator isn't a scheme (e.g. `/a/b:c`).
+        Some((scheme, _)) if scheme.contains(['/', '?', '#']) => true,
+        Some((scheme, _)) => SAFE_URL_SCHEMES.contains(&scheme.to_ascii_lowercase().as_str()),
+    }
+}
+
+/// Post content is author-supplied, and pulldown-cmark passes raw HTML through
+/// verbatim, so drop HTML events and unsafe URLs before the result is rendered
+/// with `| safe`.
 pub(crate) fn render_markdown(content: &str) -> String {
+    use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
+
     let content = content.replace("](Video:", "](video:");
 
     let mut options = Options::empty();
@@ -197,7 +223,53 @@ pub(crate) fn render_markdown(content: &str) -> String {
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
 
-    let parser = Parser::new_ext(&content, options);
+    let mut dropped_link_depth = 0usize;
+    let parser = Parser::new_ext(&content, options).filter_map(|event| match event {
+        Event::Html(_) | Event::InlineHtml(_) => None,
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
+            if is_safe_url(&dest_url) {
+                Some(Event::Start(Tag::Link {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                }))
+            } else {
+                // Keep the link text, lose the destination.
+                dropped_link_depth += 1;
+                None
+            }
+        }
+        Event::End(TagEnd::Link) if dropped_link_depth > 0 => {
+            dropped_link_depth -= 1;
+            None
+        }
+        Event::Start(Tag::Image {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
+            let dest_url = if is_safe_url(&dest_url) {
+                dest_url
+            } else {
+                CowStr::Borrowed("")
+            };
+            Some(Event::Start(Tag::Image {
+                link_type,
+                dest_url,
+                title,
+                id,
+            }))
+        }
+        event => Some(event),
+    });
+
     let mut html_output = String::new();
     html::push_html(&mut html_output, parser);
     html_output
@@ -326,5 +398,44 @@ pub mod templates {
         pub title: String,
         pub uri: String,
         pub site: SiteParams,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_html_is_stripped_from_markdown() {
+        let rendered = render_markdown("<script>alert(1)</script>\n\nhello");
+        assert!(!rendered.contains("<script"), "{rendered}");
+        assert!(rendered.contains("hello"));
+
+        let rendered = render_markdown("text <img src=x onerror=alert(1)> more");
+        assert!(!rendered.contains("onerror"), "{rendered}");
+    }
+
+    #[test]
+    fn script_urls_are_dropped_from_links_and_images() {
+        let rendered = render_markdown("[click](javascript:alert(1))");
+        assert!(!rendered.contains("javascript:"), "{rendered}");
+        assert!(rendered.contains("click"), "link text is kept");
+
+        let rendered = render_markdown("![x](data:text/html;base64,PHN2Zz4=)");
+        assert!(!rendered.contains("data:text/html"), "{rendered}");
+    }
+
+    #[test]
+    fn ordinary_links_and_formatting_survive() {
+        let rendered = render_markdown("[site](https://example.com) and *emphasis*");
+        assert!(
+            rendered.contains("href=\"https://example.com\""),
+            "{rendered}"
+        );
+        assert!(rendered.contains("<em>emphasis</em>"), "{rendered}");
+
+        let rendered = render_markdown("[rel](/blog/post) [mail](mailto:a@b.c)");
+        assert!(rendered.contains("href=\"/blog/post\""), "{rendered}");
+        assert!(rendered.contains("href=\"mailto:a@b.c\""), "{rendered}");
     }
 }
