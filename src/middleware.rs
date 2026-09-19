@@ -201,6 +201,7 @@ impl TokenManager {
 
         if let Some(db) = &self.db {
             let _ = db.cleanup_expired_tokens(&now.to_rfc3339()).await;
+            let _ = db.cleanup_expired_reset_tokens(&now.to_rfc3339()).await;
         }
     }
 
@@ -223,22 +224,56 @@ impl TokenManager {
     /// Generate a password reset token (valid 1 hour)
     pub async fn generate_reset_token(&self, username: &str) -> String {
         let token = Uuid::new_v4().to_string();
+        let expiry = Utc::now() + chrono::Duration::hours(1);
         let data = ResetTokenData {
             username: username.to_string(),
-            expiry: Utc::now() + chrono::Duration::hours(1),
+            expiry,
         };
         self.reset_tokens.write().await.insert(token.clone(), data);
+
+        // Mirror the session-token pattern: persist only the digest so a pending
+        // reset survives a restart (single-use semantics are enforced on consume).
+        if let Some(db) = &self.db
+            && let Err(e) = db
+                .save_reset_token(&token_digest(&token), username, &expiry.to_rfc3339())
+                .await
+        {
+            tracing::error!(error = %e, "failed to persist reset token");
+        }
+
         token
     }
 
     /// Consume reset token after use
     pub async fn consume_reset_token(&self, token: &str) -> Option<String> {
-        let mut tokens = self.reset_tokens.write().await;
-        if let Some(data) = tokens.remove(token)
-            && Utc::now() < data.expiry
+        // Cached copy wins and is removed; the persisted copy is deleted too so a
+        // single-use token cannot be replayed after a restart.
         {
-            return Some(data.username);
+            let mut tokens = self.reset_tokens.write().await;
+            if let Some(data) = tokens.remove(token) {
+                let digest = token_digest(token);
+                if let Some(db) = &self.db {
+                    let _ = db.delete_reset_token(&digest).await;
+                }
+                if Utc::now() < data.expiry {
+                    return Some(data.username);
+                }
+                return None;
+            }
         }
+
+        // Cold start or another process: fall back to the persisted copy.
+        if let Some(db) = &self.db {
+            let digest = token_digest(token);
+            if let Ok(Some((username, expiry))) = db.get_reset_token(&digest).await {
+                let _ = db.delete_reset_token(&digest).await;
+                return match expiry.parse::<DateTime<Utc>>() {
+                    Ok(expiry_dt) if Utc::now() < expiry_dt => Some(username),
+                    _ => None,
+                };
+            }
+        }
+
         None
     }
 }
@@ -357,8 +392,8 @@ pub async fn rate_limit(
     State(state): State<AppState>,
     req: Request,
     next: axum::middleware::Next,
-) -> impl IntoResponse {
-    if RATE_LIMITED_PATHS.contains(&req.uri().path()) {
+) -> impl IntoResponse {    // Only POSTs count as attempts — viewing the login page is not one.
+    if req.method() == axum::http::Method::POST && RATE_LIMITED_PATHS.contains(&req.uri().path()) {
         let key = client_key(&state, &req);
 
         let mut map = state.rate_limiter.write().await;
@@ -383,6 +418,45 @@ pub async fn rate_limit(
     }
 
     next.run(req).await.into_response()
+}
+
+/// CSRF defense-in-depth on top of `SameSite=Strict`: state-changing requests that
+/// carry an `Origin` header must match the `Host` they are sent to. Requests without
+/// an `Origin` (curl, server-to-server) are unaffected; browsers always send one on
+/// cross-site POSTs, which is exactly what this rejects.
+pub async fn csrf_protection(req: Request, next: Next) -> Response<Body> {
+    use axum::http::Method;
+    const STATE_CHANGING: [Method; 4] =
+        [Method::POST, Method::PUT, Method::DELETE, Method::PATCH];
+
+    if STATE_CHANGING.contains(req.method()) {
+        let origin = req
+            .headers()
+            .get(header::ORIGIN)
+            .and_then(|v| v.to_str().ok());
+        if let Some(origin) = origin {
+            let host = req
+                .headers()
+                .get(header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default();
+            let origin_host = origin
+                .trim_start_matches("http://")
+                .trim_start_matches("https://")
+                .split('/')
+                .next()
+                .unwrap_or_default();
+            if origin_host != host {
+                return (
+                    axum::http::StatusCode::FORBIDDEN,
+                    "cross-origin request rejected",
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    next.run(req).await
 }
 
 /// Baseline hardening headers. Swagger UI ships inline scripts/styles, so it keeps

@@ -22,7 +22,9 @@ use axum::{
     routing::{get, post},
 };
 use tower_http::{
-    catch_panic::CatchPanicLayer, compression::CompressionLayer, services::ServeDir,
+    catch_panic::CatchPanicLayer,
+    compression::CompressionLayer,
+    services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
 use utoipa::OpenApi;
@@ -32,7 +34,10 @@ use utoipa_swagger_ui::SwaggerUi;
 const DEFAULT_BODY_LIMIT: usize = 256 * 1024;
 
 pub fn app_router(state: AppState) -> Router<()> {
-    let serve_dir = ServeDir::new("static").not_found_service(ServeDir::new("templates/404.html"));
+    // ServeFile (not ServeDir) as the not-found fallback: tower-http rewrites the
+    // request path for the fallback service, so a ServeDir rooted at a file would
+    // try to open `templates/404.html/<requested-path>` and return an empty 404.
+    let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("templates/404.html"));
     let doc = api::ApiDoc::openapi();
     let swagger = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", doc);
 
@@ -77,6 +82,7 @@ pub fn app_router(state: AppState) -> Router<()> {
             state.clone(),
             middleware::security_headers,
         ))
+        .layer(from_fn(middleware::csrf_protection))
         .layer(CompressionLayer::new())
         .layer(CatchPanicLayer::new())
         .with_state(state)

@@ -63,4 +63,20 @@ pub trait Db: Send + Sync {
     async fn get_token(&self, token: &str) -> Result<Option<(String, String, String, String)>>;
     async fn delete_token(&self, token: &str) -> Result<()>;
     async fn cleanup_expired_tokens(&self, now: &str) -> Result<()>;
+
+    // Password-reset tokens are persisted the same way as session tokens so a
+    // pending reset survives a restart. The default no-ops keep backends without
+    // a table (surreal) working with the in-memory copy only.
+    async fn save_reset_token(&self, _token: &str, _username: &str, _expiry: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn get_reset_token(&self, _token: &str) -> Result<Option<(String, String)>> {
+        Ok(None)
+    }
+    async fn delete_reset_token(&self, _token: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn cleanup_expired_reset_tokens(&self, _now: &str) -> Result<()> {
+        Ok(())
+    }
 }

@@ -8,6 +8,11 @@ use axum_template::config::Config;
 use axum_template::db::{Db, NewPost, NewProject, NewTeamMember, create_db};
 
 async fn connect() -> Option<Box<dyn Db>> {
+    // Config::load requires ADMIN_PASSWORD; set a throwaway one for the test run.
+    // SAFETY: written once via `Once` before any test reads the env, never mutated after.
+    static ENV_INIT: std::sync::Once = std::sync::Once::new();
+    ENV_INIT.call_once(|| unsafe { std::env::set_var("ADMIN_PASSWORD", "admin") });
+
     let mut config = Config::load("config.toml").expect("config");
     config.db.surreal.url =
         std::env::var("SURREAL_TEST_URL").unwrap_or_else(|_| "ws://localhost:8000".into());

@@ -19,6 +19,11 @@ use tokio::sync::RwLock;
 
 /// Each test gets its own sqlite file so they can run in parallel.
 async fn setup_test_app() -> (Router<()>, AppState) {
+    // Config::load requires ADMIN_PASSWORD; set a throwaway one for the test run.
+    // SAFETY: written once via `Once` before any test reads the env, never mutated after.
+    static ENV_INIT: std::sync::Once = std::sync::Once::new();
+    ENV_INIT.call_once(|| unsafe { std::env::set_var("ADMIN_PASSWORD", "admin") });
+
     let mut config = Config::load("config.toml").expect("Failed to load config");
     config.db.path = std::env::temp_dir()
         .join(format!("axum-template-test-{}.db", uuid::Uuid::new_v4()))
@@ -553,7 +558,7 @@ async fn test_api_writes_allowed_for_editor() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::OK, "an Editor may create posts");
+    assert_eq!(status, StatusCode::CREATED, "an Editor may create posts");
 }
 
 #[tokio::test]

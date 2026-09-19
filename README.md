@@ -56,8 +56,8 @@ Edit `config.toml` to configure:
 - Site name and tagline
 
 #### Security checklist before exposing the server
-- **Set `ADMIN_PASSWORD`** and delete `admin_password` from `config.toml`. The value in
-  the file is a dev convenience; the server logs a warning whenever it falls back to it.
+- **Set the `ADMIN_PASSWORD` env var** — it is the only password source; the server
+  refuses to start without it. (`just run`/`just test` use a throwaway dev default.)
   With the SurrealDB backend, set `SURREAL_PASSWORD` the same way.
 - **Set `server.trusted_proxy = true` only behind a proxy you control** (nginx, cloudflared).
   It makes login rate limiting trust `X-Real-IP`/`X-Forwarded-For`; with it on and nothing

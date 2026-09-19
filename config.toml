@@ -2,14 +2,15 @@
 host = "0.0.0.0"
 port = 7777
 # Set to true only when a proxy you control (nginx, cloudflared) sits in front,
-# so X-Real-IP/X-Forwarded-For can be trusted for rate limiting.
+# so X-Real-IP/X-Forwarded-For can be trusted for rate limiting. This also tells
+# the app the proxy terminates TLS, enabling Secure cookies and HSTS.
 trusted_proxy = false
 
 [auth]
 token_ttl = 3600
 admin_username = "admin"
-# Dev fallback only. In production set the ADMIN_PASSWORD env var and delete this line.
-admin_password = "admin"
+# No password here on purpose: the ADMIN_PASSWORD env var is the only source.
+# The server refuses to start without it.
 
 [db]
 path = "posts.db"

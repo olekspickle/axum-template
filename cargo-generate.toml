@@ -10,6 +10,8 @@ ignore = [
     "key.pem",
     "cert.pem",
     "node_modules",
+    ".env",
+    "TODO.md",
 ]
 
 [placeholders.domain]

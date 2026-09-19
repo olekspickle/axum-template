@@ -14,6 +14,7 @@ services:
       - spider-web
     environment:
       - MANAGER_AUTH_TOKEN=secret
+      - ADMIN_PASSWORD=admin  # dev-only local stack; production uses /etc/<app>.env
       - SURREALDB_URL=ws://surrealdb:8000  # SurrealDB WebSocket URL
       - SURREALDB_USER=root
       - SURREALDB_PASS=root

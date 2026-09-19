@@ -32,7 +32,9 @@ pub struct AuthParams {
     #[serde(default = "default_u64::<3600>")]
     pub token_ttl: u64,
     pub admin_username: String,
-    #[serde(skip_serializing)]
+    /// Never read from config.toml (`skip`) — the ADMIN_PASSWORD env var is the
+    /// only source, so a password can never be committed or shipped in the file.
+    #[serde(skip)]
     pub admin_password: Option<String>,
 }
 
@@ -100,16 +102,11 @@ impl Config {
         let config_str = fs::read_to_string(path.as_ref())?;
         let mut config: Config = toml::from_str(&config_str)?;
 
-        // Admin password from env var (preferred) or config file (fallback for dev)
+        // Admin password comes from the ADMIN_PASSWORD env var only; the server
+        // refuses to start without it (deployments get it from /etc/<app>.env).
         match env::var("ADMIN_PASSWORD") {
             Ok(password) => config.auth.admin_password = Some(password),
-            Err(_) if config.auth.admin_password.is_some() => tracing::warn!(
-                "using admin_password from config.toml - set ADMIN_PASSWORD and remove it from the \
-                 file before exposing this server"
-            ),
-            Err(_) => anyhow::bail!(
-                "ADMIN_PASSWORD env var must be set (or set admin_password in config.toml for dev)"
-            ),
+            Err(_) => anyhow::bail!("ADMIN_PASSWORD env var must be set"),
         }
 
         #[cfg(feature = "surreal")]

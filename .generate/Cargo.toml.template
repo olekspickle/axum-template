@@ -52,3 +52,4 @@ zip = { version = "8", default-features = false, features = ["aes-crypto"] }
 tower = "0.5"
 http-body-util = "0.1"
 serde_json = "1"
+

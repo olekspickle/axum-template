@@ -49,7 +49,10 @@ impl From<AppError> for Response<Body> {
             AppError::Sqlite(sqlx_err) => match sqlx_err {
                 SqlxError::Database(_)
                 | SqlxError::InvalidArgument(_)
-                | SqlxError::ColumnIndexOutOfBounds { .. } => StatusCode::BAD_REQUEST,
+                | SqlxError::ColumnIndexOutOfBounds { .. } => {
+                    tracing::warn!(err=?sqlx_err, "SqlxError (client-visible 400)");
+                    StatusCode::BAD_REQUEST
+                }
                 SqlxError::RowNotFound
                 | SqlxError::ColumnNotFound(_)
                 | SqlxError::TypeNotFound { .. } => StatusCode::NOT_FOUND,
@@ -75,6 +78,14 @@ impl From<AppError> for Response<Body> {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         };
-        response(status_code, &val.to_string())
+        // Clients get a generic status-appropriate message. The Display text of
+        // the underlying error can contain schema details, SQL text, or filesystem
+        // paths, so it goes to the logs (above), never to the response body.
+        let body = match status_code {
+            StatusCode::BAD_REQUEST => "bad request",
+            StatusCode::NOT_FOUND => "not found",
+            _ => "internal server error",
+        };
+        response(status_code, body)
     }
 }

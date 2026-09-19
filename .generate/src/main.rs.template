@@ -86,7 +86,12 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn(auth_cleanup(auth.clone()));
 
-    let https = Path::new("cert.pem").exists() && Path::new("key.pem").exists();
+    let certs_present = Path::new("cert.pem").exists() && Path::new("key.pem").exists();
+    // Client-facing TLS happens either directly (certs above) or at a trusted
+    // TLS-terminating proxy (cloudflared/nginx). In both cases cookies must be
+    // `Secure` and HSTS applies — keying this off cert presence alone would
+    // leave tunnel deployments without either.
+    let https = certs_present || config.server.trusted_proxy;
 
     let state = AppState {
         db: db.clone(),
@@ -101,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
     let router = app_router(state);
     let addr: SocketAddr = config_addr.parse().expect("invalid address");
 
-    if https {
+    if certs_present {
         tls::run_with_tls(addr, router).await?;
         return Ok(());
     }

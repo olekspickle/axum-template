@@ -25,6 +25,8 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install just
         uses: taiki-e/install-action@just
+      - name: Template drift
+        run: just check-templates
       - name: Lint
         run: |
           cargo clippy -- -D warnings

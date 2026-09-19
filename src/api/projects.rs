@@ -3,6 +3,7 @@ use axum::{
     response::Json,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::{
@@ -91,8 +92,8 @@ pub async fn create_project(
     Json(form): Json<NewProject>,
 ) -> Json<serde_json::Value> {
     match state.db.create_project(form).await {
-        Ok(id) => Json(serde_json::json!({ "id": id })),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(id) => Json(json!({ "id": id })),
+        Err(e) => Json(json!({ "error": e.to_string() })),
     }
 }
 
@@ -111,8 +112,8 @@ pub async fn update_project(
     Json(form): Json<NewProject>,
 ) -> Json<serde_json::Value> {
     match state.db.update_project(&id, form).await {
-        Ok(_) => Json(serde_json::json!({ "success": true })),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(_) => Json(json!({ "success": true })),
+        Err(e) => Json(json!({ "error": e.to_string() })),
     }
 }
 
@@ -129,5 +130,5 @@ pub async fn delete_project(
     Path(id): Path<String>,
 ) -> Json<serde_json::Value> {
     state.db.delete_project(&id).await.ok();
-    Json(serde_json::json!({ "success": true }))
+    Json(json!({ "success": true }))
 }

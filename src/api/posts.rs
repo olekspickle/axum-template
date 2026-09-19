@@ -1,8 +1,10 @@
 use axum::{
     extract::{Path, State},
-    response::Json,
+    http::StatusCode,
+    response::{IntoResponse, Json},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::{
@@ -77,10 +79,16 @@ pub async fn get_post(
 pub async fn create_post(
     State(state): State<AppState>,
     Json(form): Json<NewPost>,
-) -> Json<serde_json::Value> {
+) -> impl IntoResponse {
     match state.db.create_post(form).await {
-        Ok(id) => Json(serde_json::json!({ "id": id })),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(id) => (StatusCode::CREATED, Json(json!({ "id": id }))),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to create post");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "failed to create post" })),
+            )
+        }
     }
 }
 
@@ -97,10 +105,16 @@ pub async fn update_post(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(form): Json<NewPost>,
-) -> Json<serde_json::Value> {
+) -> impl IntoResponse {
     match state.db.update_post(&id, form).await {
-        Ok(_) => Json(serde_json::json!({ "success": true })),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(_) => (StatusCode::OK, Json(json!({ "success": true }))),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to update post");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "failed to update post" })),
+            )
+        }
     }
 }
 
@@ -117,5 +131,5 @@ pub async fn delete_post(
     Path(id): Path<String>,
 ) -> Json<serde_json::Value> {
     state.db.delete_post(&id).await.ok();
-    Json(serde_json::json!({ "success": true }))
+    Json(json!({ "success": true }))
 }

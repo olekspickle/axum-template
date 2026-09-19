@@ -293,11 +293,11 @@ where
     fn into_response(self) -> Response {
         match self.0.render() {
             Ok(html) => Html(html).into_response(),
-            Err(err) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to render template: {}", err),
-            )
-                .into_response(),
+            Err(err) => {
+                tracing::error!(error = %err, "failed to render template");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to render template")
+                    .into_response()
+            }
         }
     }
 }

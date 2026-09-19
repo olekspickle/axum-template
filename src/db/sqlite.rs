@@ -14,6 +14,15 @@ pub struct SqliteDb {
 
 impl SqliteDb {
     pub async fn new(path: &str) -> Result<Self> {
+        // create_if_missing creates the file but not its parent directories;
+        // a configured path like `data/posts.db` would otherwise fail at init.
+        if let Some(parent) = std::path::Path::new(path)
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
             .connect_lazy_with(
@@ -81,6 +90,9 @@ impl SqliteDb {
         .execute(&*self.pool)
         .await?;
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_tokens_expiry ON tokens(expiry)")
+            .execute(&*self.pool)
+            .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_reset_tokens_expiry ON reset_tokens(expiry)")
             .execute(&*self.pool)
             .await?;
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published)")
@@ -175,6 +187,16 @@ impl Db for SqliteDb {
                 username TEXT NOT NULL,
                 role TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                expiry TEXT NOT NULL
+            )",
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS reset_tokens (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
                 expiry TEXT NOT NULL
             )",
         )
@@ -567,6 +589,42 @@ impl Db for SqliteDb {
 
     async fn cleanup_expired_tokens(&self, now: &str) -> Result<()> {
         sqlx::query("DELETE FROM tokens WHERE expiry < ?1")
+            .bind(now)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn save_reset_token(&self, token: &str, username: &str, expiry: &str) -> Result<()> {
+        sqlx::query(
+            "INSERT OR REPLACE INTO reset_tokens (token, username, expiry) VALUES (?1, ?2, ?3)",
+        )
+        .bind(token)
+        .bind(username)
+        .bind(expiry)
+        .execute(&*self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn get_reset_token(&self, token: &str) -> Result<Option<(String, String)>> {
+        let row = sqlx::query("SELECT username, expiry FROM reset_tokens WHERE token = ?1")
+            .bind(token)
+            .fetch_optional(&*self.pool)
+            .await?;
+        Ok(row.map(|r| (r.get(0), r.get(1))))
+    }
+
+    async fn delete_reset_token(&self, token: &str) -> Result<()> {
+        sqlx::query("DELETE FROM reset_tokens WHERE token = ?1")
+            .bind(token)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn cleanup_expired_reset_tokens(&self, now: &str) -> Result<()> {
+        sqlx::query("DELETE FROM reset_tokens WHERE expiry < ?1")
             .bind(now)
             .execute(&*self.pool)
             .await?;

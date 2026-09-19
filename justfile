@@ -2,6 +2,10 @@ set shell := ["bash", "-ec"]
 
 crate := "axum-template"
 
+# Dev convenience only: local `just run`/`just test` get a throwaway password.
+# Production deployments set their own ADMIN_PASSWORD (see systemd/setup.sh).
+export ADMIN_PASSWORD := env_var_or_default("ADMIN_PASSWORD", "admin")
+
 cert: # Generate self-signed SSL certificate for local HTTPS
     openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
         -keyout key.pem -out cert.pem \
@@ -12,10 +16,54 @@ css: # Compile Tailwind CSS (requires node; rerun after editing templates/static
     npm install
     npm run build:css
 
-lint:
+lint: check-templates
     cargo clippy -- -D warnings
     cargo fmt --all -- --check
     cargo machete
+
+check-templates: # Fail if .generate templates drift from their live counterparts
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Generated projects have no .generate (post-generate.rhai deletes it) — skip there.
+    if [ ! -d .generate ]; then
+        echo "no .generate directory — not the template repo, skipping"
+        exit 0
+    fi
+    fail=0
+    sub() {
+        sed -e 's/[{][{]project-name[}][}]/axum-template/g' \
+            -e 's/[{][{]crate_name[}][}]/axum_template/g' \
+            -e 's/[{][{]authors[}][}]/olekspickle/g' \
+            -e 's/[{][{]domain[}][}]/tunnel.example.com/g' \
+            -e 's/{[%] raw [%]}//g' \
+            -e 's/{[%] endraw [%]}//g' \
+            -e 's/^version = ".*"/version = "MASKED"/' \
+            -e 's/^authors = .*/authors = MASKED/' \
+            -e '/Askama syntax is wrapped in raw blocks/d' "$1"
+    }
+    check() {
+        if ! diff <(sub "$1") <(sub "$2") >/dev/null; then
+            echo "DRIFT: $1 != $2"
+            diff <(sub "$1") <(sub "$2") | head -30
+            fail=1
+        fi
+    }
+    check .generate/Cargo.toml.template Cargo.toml
+    check .generate/src/main.rs.template src/main.rs
+    check .generate/templates/head.html.template templates/head.html
+    check .generate/Dockerfile.template docker/Dockerfile.run
+    check .generate/compose.yml.template docker/compose.yml
+    check .generate/.github/workflows/release.yaml.template .github/workflows/release.yaml
+    check .generate/systemd/axum-template.service.template systemd/axum-template.service
+    check .generate/systemd/cleanup.sh.template systemd/cleanup.sh
+    check .generate/systemd/cloudflared-config.yml.template systemd/cloudflared-config.yml
+    check .generate/systemd/cloudflared.service.template systemd/cloudflared.service
+    check .generate/systemd/setup.sh.template systemd/setup.sh
+    check .generate/tests/integration.rs.template tests/integration.rs
+    check .generate/tests/surreal_db.rs.template tests/surreal_db.rs
+    # README.md.template is intentionally excluded: the generated README differs by design.
+    if [ "$fail" -eq 0 ]; then echo "templates in sync"; fi
+    exit "$fail"
 
 test: # Run the test suite (surreal tests are skipped unless a server is reachable)
     cargo test --all-targets
@@ -41,7 +89,7 @@ pack: # Build Docker image locally
     docker build -t {{crate}}:local -f docker/Dockerfile.run .
 
 tag version: pack # Tag local image, e.g. `just tag v0.2.0`
-    docker tag {{crate}}:local olekspickle/{{crate}}:{{version}}
+    docker tag {{crate}}:local {{crate}}:{{version}}
 
 # Run Docker container with resource limits
 run-docker-restricted: pack

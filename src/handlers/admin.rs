@@ -394,7 +394,10 @@ pub async fn admin_save_project(
 
     match result {
         Ok(_) => redirect_fragment("/admin/projects"),
-        Err(e) => error_fragment(&format!("Failed to save project: {e}")),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to save project");
+            error_fragment("Failed to save project")
+        }
     }
 }
 
@@ -416,7 +419,10 @@ pub async fn admin_save_post(
 
     match result {
         Ok(_) => redirect_fragment("/admin/posts"),
-        Err(e) => error_fragment(&format!("Failed to save post: {e}")),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to save post");
+            error_fragment("Failed to save post")
+        }
     }
 }
 
@@ -450,11 +456,14 @@ pub async fn admin_create_team_member(
 ) -> impl IntoResponse {
     match state.db.create_team_member(form).await {
         Ok(_) => Redirect::to("/admin/team").into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to create team member: {}", e),
-        )
-            .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to create team member");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to create team member",
+            )
+                .into_response()
+        }
     }
 }
 
@@ -491,7 +500,7 @@ pub async fn admin_logout(
 }
 
 /// Per-request cap for the upload route. The admin UI posts one file at a time.
-const MAX_UPLOAD_BYTES: usize = 250 * 1024 * 1024;
+const MAX_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
 
 /// Extensions we are willing to write and later serve from our own origin.
 /// `svg`/`html` are deliberately absent - both can execute script.
@@ -570,25 +579,6 @@ pub async fn upload_media(
                 return upload_error(StatusCode::UNSUPPORTED_MEDIA_TYPE, "file type not allowed");
             }
 
-            let Ok(data) = field.bytes().await else {
-                continue;
-            };
-
-            let hash = hex::encode(Sha256::digest(&data));
-
-            if let Some(existing_path) = media_index_lookup(&state, &hash).await {
-                tracing::info!(path = %existing_path, hash = %hash, "file already exists");
-                return (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({
-                        "success": true,
-                        "existing": true,
-                        "path": existing_path,
-                        "slug": slug
-                    })),
-                );
-            }
-
             let slug = if slug.is_empty() {
                 "upload".to_string()
             } else {
@@ -615,23 +605,59 @@ pub async fn upload_media(
                 final_path = dir.join(format!("{slug}-{n}.{ext}"));
             }
 
-            let path = final_path.clone();
-            let write = tokio::task::spawn_blocking(move || std::fs::write(&path, &data)).await;
-            match write {
-                Ok(Ok(())) => {
-                    tracing::info!(path = %final_path.display(), hash = %hash, "uploaded media");
-                    upload_count += 1;
-                    media_index_insert(&state, hash, final_path.display().to_string()).await;
-                }
-                Ok(Err(e)) => {
-                    tracing::error!(error = %e, "failed to write file");
-                    return upload_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to store file");
-                }
+            // Stream the body to disk in chunks, hashing as we go: a large upload
+            // never sits fully in memory. Dedup happens after the write (the hash
+            // needs the whole content), and a duplicate is deleted again.
+            use tokio::io::AsyncWriteExt as _;
+            let mut file = match tokio::fs::File::create(&final_path).await {
+                Ok(file) => file,
                 Err(e) => {
-                    tracing::error!(error = %e, "upload task failed");
+                    tracing::error!(error = %e, path = %final_path.display(), "failed to create file");
                     return upload_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to store file");
+                }
+            };
+            let mut hasher = Sha256::new();
+            let mut field = field;
+            loop {
+                match field.chunk().await {
+                    Ok(Some(chunk)) => {
+                        hasher.update(&chunk);
+                        if let Err(e) = file.write_all(&chunk).await {
+                            tracing::error!(error = %e, path = %final_path.display(), "failed to write file");
+                            let _ = tokio::fs::remove_file(&final_path).await;
+                            return upload_error(
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                "failed to store file",
+                            );
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        tracing::warn!(error = %e, "failed reading upload stream");
+                        let _ = tokio::fs::remove_file(&final_path).await;
+                        return upload_error(StatusCode::BAD_REQUEST, "failed to read upload");
+                    }
                 }
             }
+            let hash = hex::encode(hasher.finalize());
+
+            if let Some(existing_path) = media_index_lookup(&state, &hash).await {
+                tracing::info!(path = %existing_path, hash = %hash, "file already exists");
+                let _ = tokio::fs::remove_file(&final_path).await;
+                return (
+                    StatusCode::OK,
+                    axum::Json(serde_json::json!({
+                        "success": true,
+                        "existing": true,
+                        "path": existing_path,
+                        "slug": slug
+                    })),
+                );
+            }
+
+            tracing::info!(path = %final_path.display(), hash = %hash, "uploaded media");
+            upload_count += 1;
+            media_index_insert(&state, hash, final_path.display().to_string()).await;
         }
     }
 
@@ -787,10 +813,10 @@ pub async fn reset_password(
         return error_fragment("Invalid or expired reset token");
     };
 
-    // Admin credentials come from config.toml / ADMIN_PASSWORD env, not the DB - no in-memory reset
+    // Admin credentials come from the ADMIN_PASSWORD env var, not the DB - no in-memory reset
     if state.config.auth.admin_username == username {
         return error_fragment(
-            "Admin password is managed in config.toml / ADMIN_PASSWORD env - edit it and restart",
+            "Admin password is managed via the ADMIN_PASSWORD env var - set it and restart",
         );
     }
 
@@ -833,11 +859,11 @@ where
     fn into_response(self) -> Response {
         match self.0.render() {
             Ok(html) => Html(html).into_response(),
-            Err(err) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to render template: {}", err),
-            )
-                .into_response(),
+            Err(err) => {
+                tracing::error!(error = %err, "failed to render template");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to render template")
+                    .into_response()
+            }
         }
     }
 }

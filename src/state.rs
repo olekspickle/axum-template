@@ -20,6 +20,9 @@ pub struct AppState {
     pub required_role: Role,
     pub rate_limiter: Arc<RwLock<HashMap<String, (usize, Instant)>>>,
     pub media_index: MediaIndex,
+    /// True when the client-facing connection is TLS — either served directly
+    /// (cert.pem/key.pem present) or terminated at a trusted proxy. Drives the
+    /// `Secure` cookie flag and HSTS.
     pub https: bool,
 }
 

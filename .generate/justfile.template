@@ -2,6 +2,10 @@ set shell := ["bash", "-ec"]
 
 crate := "{{project-name}}"
 
+# Dev convenience only: local `just run`/`just test` get a throwaway password.
+# Production deployments set their own ADMIN_PASSWORD (see systemd/setup.sh).
+export ADMIN_PASSWORD := env_var_or_default("ADMIN_PASSWORD", "admin")
+
 cert: # Generate self-signed SSL certificate for local HTTPS
     openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
         -keyout key.pem -out cert.pem \
@@ -41,7 +45,7 @@ pack: # Build Docker image locally
     docker build -t {% raw %}{{crate}}{% endraw %}:local -f docker/Dockerfile.run .
 
 tag version: pack # Tag local image, e.g. `just tag v0.2.0`
-    docker tag {% raw %}{{crate}}{% endraw %}:local olekspickle/{% raw %}{{crate}}{% endraw %}:{% raw %}{{version}}{% endraw %}
+    docker tag {% raw %}{{crate}}{% endraw %}:local {% raw %}{{crate}}{% endraw %}:{% raw %}{{version}}{% endraw %}
 
 # Run Docker container with resource limits
 run-docker-restricted: pack

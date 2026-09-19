@@ -4,3 +4,9 @@
 .DS_Store
 *.md
 cargo-generate.toml
+node_modules
+posts.db
+posts.db-*
+cert.pem
+key.pem
+*.env

@@ -7,6 +7,8 @@ file::rename(".generate/.github/workflows/release.yaml.template", ".github/workf
 file::rename(".generate/templates/head.html.template", "templates/head.html");
 file::rename(".generate/Dockerfile.template", "docker/Dockerfile.run");
 file::rename(".generate/compose.yml.template", "docker/compose.yml");
+file::rename(".generate/tests/integration.rs.template", "tests/integration.rs");
+file::rename(".generate/tests/surreal_db.rs.template", "tests/surreal_db.rs");
 
 // systemd: root unit was copied verbatim; replace it with the project-named one
 file::delete("systemd/axum-template.service");
