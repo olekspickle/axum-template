@@ -26,7 +26,6 @@ sudo systemctl daemon-reload
 
 echo "[3/4] Removing files, symlinks and user..."
 sudo rm -rf "$APP_DIR"
-sudo rm -f /usr/local/bin/cloudflared /usr/local/bin/cf
 if id "$APP_USER" &>/dev/null; then
     sudo userdel "$APP_USER"
 fi

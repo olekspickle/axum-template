@@ -10,7 +10,9 @@ use surrealdb::{
 use uuid::Uuid;
 
 use crate::config::{Config, SurrealParams};
-use crate::db::{Db, NewPost, NewProject, NewTeamMember, Post, Project, TeamMember};
+use crate::db::{
+    Db, NewPost, NewProject, NewTeamMember, PhotoPos, Post, Project, TeamMember, parse_links,
+};
 use crate::error::{AppError, Result};
 
 pub struct SurrealDb {
@@ -167,6 +169,8 @@ impl PostContent {
     }
 }
 
+/// `links` is a JSON string (same shape as the sqlite column). Records written before
+/// links existed have it unset, in which case the legacy `*_url` fields are read as links.
 #[derive(SurrealValue)]
 struct TeamMemberRow {
     id: RecordId,
@@ -177,6 +181,10 @@ struct TeamMemberRow {
     github_url: Option<String>,
     twitter_url: Option<String>,
     linkedin_url: Option<String>,
+    links: Option<String>,
+    photo_w: Option<f64>,
+    photo_l: Option<f64>,
+    photo_t: Option<f64>,
     password_hash: Option<String>,
     created_at: String,
 }
@@ -187,24 +195,74 @@ struct TeamMemberContent {
     role: String,
     bio: String,
     photo_url: Option<String>,
-    github_url: Option<String>,
-    twitter_url: Option<String>,
-    linkedin_url: Option<String>,
+    links: Option<String>,
+    photo_w: Option<f64>,
+    photo_l: Option<f64>,
+    photo_t: Option<f64>,
     password_hash: Option<String>,
     created_at: String,
 }
 
+/// The editable fields only, merged into the stored record so the password hash,
+/// creation time and any legacy fields are left alone.
+#[derive(SurrealValue)]
+struct TeamMemberEdit {
+    name: String,
+    role: String,
+    bio: String,
+    photo_url: Option<String>,
+    links: Option<String>,
+    photo_w: Option<f64>,
+    photo_l: Option<f64>,
+    photo_t: Option<f64>,
+}
+
+impl TeamMemberEdit {
+    fn new(m: NewTeamMember) -> Result<Self> {
+        Ok(Self {
+            name: m.name,
+            role: m.role,
+            bio: m.bio,
+            photo_url: m.photo_url,
+            links: Some(serde_json::to_string(&m.links)?),
+            photo_w: m.photo.w,
+            photo_l: Some(m.photo.l),
+            photo_t: Some(m.photo.t),
+        })
+    }
+}
+
 impl From<TeamMemberRow> for TeamMember {
     fn from(r: TeamMemberRow) -> Self {
+        let links = match &r.links {
+            Some(json) => serde_json::from_str(json).unwrap_or_default(),
+            None => {
+                let legacy: Vec<_> = [
+                    ("github", &r.github_url),
+                    ("x", &r.twitter_url),
+                    ("linkedin", &r.linkedin_url),
+                ]
+                .into_iter()
+                .filter_map(|(platform, url)| {
+                    url.as_ref()
+                        .map(|url| serde_json::json!({ "platform": platform, "url": url }))
+                })
+                .collect();
+                parse_links(&serde_json::Value::Array(legacy).to_string())
+            }
+        };
         TeamMember {
             id: record_key(&r.id),
             name: r.name,
             role: r.role,
             bio: r.bio,
             photo_url: r.photo_url,
-            github_url: r.github_url,
-            twitter_url: r.twitter_url,
-            linkedin_url: r.linkedin_url,
+            photo: PhotoPos {
+                w: r.photo_w,
+                l: r.photo_l.unwrap_or(0.0),
+                t: r.photo_t.unwrap_or(0.0),
+            },
+            links,
             password_hash: r.password_hash,
             created_at: r.created_at,
         }
@@ -314,6 +372,10 @@ impl Db for SurrealDb {
                 DEFINE FIELD IF NOT EXISTS github_url ON TABLE team_member TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS twitter_url ON TABLE team_member TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS linkedin_url ON TABLE team_member TYPE option<string>;
+                DEFINE FIELD IF NOT EXISTS links ON TABLE team_member TYPE option<string>;
+                DEFINE FIELD IF NOT EXISTS photo_w ON TABLE team_member TYPE option<float>;
+                DEFINE FIELD IF NOT EXISTS photo_l ON TABLE team_member TYPE option<float>;
+                DEFINE FIELD IF NOT EXISTS photo_t ON TABLE team_member TYPE option<float>;
                 DEFINE FIELD IF NOT EXISTS password_hash ON TABLE team_member TYPE option<string>;
                 DEFINE FIELD IF NOT EXISTS created_at ON TABLE team_member TYPE string;
                 DEFINE INDEX IF NOT EXISTS team_member_name ON TABLE team_member COLUMNS name UNIQUE;
@@ -497,9 +559,10 @@ impl Db for SurrealDb {
                 role: m.role,
                 bio: m.bio,
                 photo_url: m.photo_url,
-                github_url: m.github_url,
-                twitter_url: m.twitter_url,
-                linkedin_url: m.linkedin_url,
+                links: Some(serde_json::to_string(&m.links)?),
+                photo_w: m.photo.w,
+                photo_l: Some(m.photo.l),
+                photo_t: Some(m.photo.t),
                 password_hash,
                 created_at: now,
             })
@@ -525,6 +588,23 @@ impl Db for SurrealDb {
             .await?
             .take(0)?;
         Ok(rows.into_iter().next().map(Into::into))
+    }
+
+    async fn get_team_member_by_id(&self, id: &str) -> Result<Option<TeamMember>> {
+        let row: Option<TeamMemberRow> = self.db.select(("team_member", id)).await?;
+        Ok(row.map(Into::into))
+    }
+
+    async fn update_team_member(&self, id: &str, m: NewTeamMember) -> Result<()> {
+        let existing: Option<TeamMemberRow> = self.db.select(("team_member", id)).await?;
+        existing.ok_or(AppError::NotFound)?;
+
+        let _updated: Option<TeamMemberRow> = self
+            .db
+            .update(("team_member", id))
+            .merge(TeamMemberEdit::new(m)?)
+            .await?;
+        Ok(())
     }
 
     async fn delete_team_member(&self, id: &str) -> Result<()> {

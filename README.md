@@ -28,6 +28,11 @@ This template provides:
 - [x] Password reset flow
 - [x] Remember me checkbox with longer token TTL
 - [x] Simple footer with socials
+- [x] Team members: add and edit, with a flexible list of social links (platform picker, icons on the About page) and a drag/zoom avatar framer
+- [x] Image fields everywhere: paste a URL or upload, with a preview (team photo, post cover, project thumbnail and gallery)
+
+Existing databases upgrade themselves on startup: SQLite gets the new team columns and carries the old
+GitHub/Twitter/LinkedIn URLs over as links; SurrealDB reads old records' URLs as links until they are next saved.
 
 ### Quick start
 Install [cargo-generate] and run:

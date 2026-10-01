@@ -5,7 +5,9 @@
 #![cfg(feature = "surreal")]
 
 use {{crate_name}}::config::Config;
-use {{crate_name}}::db::{Db, NewPost, NewProject, NewTeamMember, create_db};
+use {{crate_name}}::db::{
+    Db, NewPost, NewProject, NewTeamMember, PhotoPos, SocialLink, create_db,
+};
 
 async fn connect() -> Option<Box<dyn Db>> {
     // Config::load requires ADMIN_PASSWORD; set a throwaway one for the test run.
@@ -220,4 +222,67 @@ async fn team_member_password_update() {
         .expect("some");
     assert_eq!(member.password_hash.as_deref(), Some("new-hash"));
     assert_ne!(member.password_hash, Some(original));
+}
+
+#[tokio::test]
+async fn team_member_links_framing_and_edit() {
+    let Some(db) = connect().await else { return };
+
+    let created = db
+        .create_team_member(NewTeamMember {
+            name: "dave".into(),
+            role: "Dev".into(),
+            bio: "bio".into(),
+            password: Some("initial-password".into()),
+            links: vec![SocialLink {
+                platform: "github".into(),
+                url: "https://github.com/dave".into(),
+            }],
+            photo: PhotoPos {
+                w: Some(220.0),
+                l: -30.0,
+                t: -10.0,
+            },
+            ..Default::default()
+        })
+        .await
+        .expect("create");
+    let hash = created.password_hash.clone().expect("hash stored");
+
+    let fetched = db
+        .get_team_member_by_id(&created.id)
+        .await
+        .expect("get")
+        .expect("some");
+    assert_eq!(fetched.links.len(), 1);
+    assert_eq!(fetched.photo.w, Some(220.0));
+
+    db.update_team_member(
+        &created.id,
+        NewTeamMember {
+            name: "dave".into(),
+            role: "Lead".into(),
+            bio: "new".into(),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("update");
+
+    let updated = db
+        .get_team_member_by_id(&created.id)
+        .await
+        .expect("get")
+        .expect("some");
+    assert_eq!(updated.role, "Lead");
+    assert!(updated.links.is_empty(), "update replaces links");
+    assert_eq!(updated.photo, PhotoPos::default());
+    assert_eq!(updated.password_hash, Some(hash), "update keeps the password");
+
+    assert!(
+        db.update_team_member("missing", NewTeamMember::default())
+            .await
+            .is_err(),
+        "updating an unknown member is an error"
+    );
 }

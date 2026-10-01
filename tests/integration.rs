@@ -660,3 +660,207 @@ async fn test_swagger_ui_is_not_public() {
         "the API schema should not be readable anonymously"
     );
 }
+
+/// Minimal form-urlencoding so the tests can post JSON and paths as field values.
+fn urlencode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+fn form_body(fields: &[(&str, &str)]) -> String {
+    fields
+        .iter()
+        .map(|(k, v)| format!("{k}={}", urlencode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+#[tokio::test]
+async fn test_team_member_links_framing_and_edit_round_trip() {
+    let (mut app, state) = setup_test_app().await;
+    let token = login(&mut app, "admin", "admin").await.expect("admin login");
+    let cookie = format!("token={token}");
+    let form = ("Content-Type", "application/x-www-form-urlencoded");
+
+    let (status, _, _) = make_request(
+        &mut app,
+        "POST",
+        "/admin/team",
+        vec![form, ("Cookie", &cookie)],
+        Some(form_body(&[
+            ("name", "Jane"),
+            ("role", "Dev"),
+            ("bio", "hi"),
+            ("photo_url", "/static/media/img/jane.png"),
+            ("photo_w", "240"),
+            ("photo_l", "-60"),
+            ("photo_t", "-15"),
+            (
+                "links",
+                r#"[{"platform":"github","url":"https://github.com/jane"},
+                    {"platform":"x","url":"javascript:alert(1)"}]"#,
+            ),
+        ])),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "create redirects to the list");
+
+    let jane = state.db.get_team_member("Jane").await.unwrap().expect("created");
+    assert_eq!(jane.links.len(), 1, "the javascript: link must be dropped");
+    assert_eq!(jane.links[0].platform, "github");
+    assert_eq!(
+        jane.photo,
+        db::PhotoPos {
+            w: Some(240.0),
+            l: -60.0,
+            t: -15.0
+        }
+    );
+
+    let (status, body, _) = make_request(&mut app, "GET", "/about", vec![], None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("fa-brands fa-github"), "icon rendered from links");
+    assert!(body.contains("width:240.00%"), "framing rendered inline");
+    assert!(!body.contains("javascript:"));
+
+    let (status, body, _) = make_request(
+        &mut app,
+        "GET",
+        &format!("/admin/team/{}", jane.id),
+        vec![("Cookie", &cookie)],
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"value="Jane""#), "edit form is prefilled");
+    assert!(body.contains(r#"name="photo_w" value="240""#));
+
+    // Editing replaces links/framing but never the password hash.
+    add_team_member(&state, "pw", "Editor", "correct horse battery").await;
+    let pw = state.db.get_team_member("pw").await.unwrap().expect("pw");
+    let hash = pw.password_hash.clone().expect("hash stored");
+    let (status, _, _) = make_request(
+        &mut app,
+        "POST",
+        &format!("/admin/team/{}", pw.id),
+        vec![form, ("Cookie", &cookie)],
+        Some(form_body(&[
+            ("name", "pw"),
+            ("role", "Lead"),
+            ("bio", "new bio"),
+            ("photo_url", ""),
+            ("photo_w", "not-a-number"),
+            ("links", r#"[{"platform":"email","url":"pw@example.com"}]"#),
+        ])),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let pw = state.db.get_team_member_by_id(&pw.id).await.unwrap().expect("pw");
+    assert_eq!(pw.role, "Lead");
+    assert_eq!(pw.links[0].url, "mailto:pw@example.com");
+    assert_eq!(pw.photo, db::PhotoPos::default(), "junk framing falls back to default");
+    assert_eq!(pw.password_hash, Some(hash), "edit must not touch the password");
+
+    let (status, _, headers) = make_request(
+        &mut app,
+        "GET",
+        "/admin/team/does-not-exist",
+        vec![("Cookie", &cookie)],
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(headers.get("location").unwrap(), "/admin/team");
+
+    let (status, _, _) = make_request(
+        &mut app,
+        "POST",
+        &format!("/admin/team/{}", jane.id),
+        vec![form],
+        Some(form_body(&[("name", "x"), ("role", "x"), ("bio", "x")])),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "editing needs a login");
+}
+
+#[tokio::test]
+async fn test_legacy_team_columns_are_migrated() {
+    // Databases created before `links`/avatar framing existed must be upgraded in place.
+    static ENV_INIT: std::sync::Once = std::sync::Once::new();
+    ENV_INIT.call_once(|| unsafe { std::env::set_var("ADMIN_PASSWORD", "admin") });
+
+    let path = std::env::temp_dir().join(format!("legacy-team-{}.db", uuid::Uuid::new_v4()));
+    {
+        use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
+        let pool = SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .expect("legacy db");
+        sqlx::query(
+            "CREATE TABLE team_members (id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL, bio TEXT NOT NULL, photo_url TEXT NOT NULL, github_url TEXT, twitter_url TEXT, linkedin_url TEXT, password_hash TEXT, created_at TEXT NOT NULL)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO team_members VALUES ('1','legacy','dev','bio','','https://github.com/old','','https://linkedin.com/in/old',NULL,'2026-01-01T00:00:00Z'), ('2','bare','dev','bio','',NULL,NULL,NULL,NULL,'2026-01-02T00:00:00Z')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+    }
+
+    let mut config = Config::load("config.toml").expect("config");
+    config.db.path = path.to_string_lossy().into_owned();
+    let db = db::create_db(&config).await.expect("create db");
+    db.init().await.expect("first init migrates");
+    db.init().await.expect("init is idempotent");
+
+    let legacy = db.get_team_member("legacy").await.unwrap().expect("legacy");
+    let links: Vec<_> = legacy.links.iter().map(|l| (l.platform.as_str(), l.url.as_str())).collect();
+    assert_eq!(
+        links,
+        vec![
+            ("github", "https://github.com/old"),
+            ("linkedin", "https://linkedin.com/in/old")
+        ],
+        "legacy socials carried over, empty ones skipped"
+    );
+    assert_eq!(legacy.photo, db::PhotoPos::default());
+    let bare = db.get_team_member("bare").await.unwrap().expect("bare");
+    assert!(bare.links.is_empty());
+
+    // The legacy schema still has `photo_url NOT NULL`: an empty photo must keep working.
+    let created = db
+        .create_team_member(db::NewTeamMember {
+            name: "fresh".into(),
+            role: "dev".into(),
+            bio: "bio".into(),
+            photo_url: Some(String::new()),
+            ..Default::default()
+        })
+        .await
+        .expect("create on legacy schema");
+    db.update_team_member(
+        &created.id,
+        db::NewTeamMember {
+            name: "fresh".into(),
+            role: "lead".into(),
+            bio: "bio".into(),
+            photo_url: Some(String::new()),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("update on legacy schema");
+    let _ = std::fs::remove_file(&path);
+}

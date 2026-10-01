@@ -44,15 +44,20 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Thumbnail URL</label>
-                        <input type="url" name="thumbnail_url" value="{% if let Some(p) = project %}{{ p.thumbnail_url }}{% endif %}" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700">Thumbnail</label>
+                        <div data-image-field data-slug-from="#slug-input" class="mt-1">
+                            <input type="text" name="thumbnail_url" value="{% if let Some(p) = project %}{{ p.thumbnail_url }}{% endif %}" required
+                                placeholder="Paste a URL or upload" inputmode="url"
+                                class="block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Images (comma-separated URLs)</label>
+                        <label class="block text-sm font-medium text-gray-700">Images</label>
+                        <div data-image-list data-slug-from="#slug-input" class="mt-1">
                         <input type="text" name="images" value="{% if let Some(p) = project %}{% for img in p.images %}{% if !loop.first %}, {% endif %}{{ img }}{% endfor %}{% endif %}"
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
                     </div>
 
                     <div>
@@ -91,6 +96,8 @@
             </main>
         </div>
         <script src="/static/js/slug-generator.js"></script>
+        <link rel="stylesheet" href="/static/css/admin-fields.css">
         <script src="/static/js/upload.js"></script>
+        <script src="/static/js/admin-fields.js"></script>
     </body>
 </html>

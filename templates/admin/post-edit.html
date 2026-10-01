@@ -45,9 +45,12 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Cover Image URL</label>
-                        <input type="url" name="cover_image" value="{% if let Some(p) = post %}{{ p.cover_image }}{% endif %}" required
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700">Cover Image</label>
+                        <div data-image-field data-slug-from="#slug-input" class="mt-1">
+                            <input type="text" name="cover_image" value="{% if let Some(p) = post %}{{ p.cover_image }}{% endif %}" required
+                                placeholder="Paste a URL or upload" inputmode="url"
+                                class="block w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
                     </div>
 
                     <div>
@@ -80,7 +83,9 @@
             </main>
         </div>
 
+        <link rel="stylesheet" href="/static/css/admin-fields.css">
         <script src="/static/js/upload.js"></script>
+        <script src="/static/js/admin-fields.js"></script>
         <script src="/static/js/slug-generator.js"></script>
     </body>
 </html>

@@ -5,7 +5,7 @@ use sqlx::Row;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use uuid::Uuid;
 
-use crate::db::{Db, NewPost, NewProject, NewTeamMember, Post, Project, TeamMember};
+use crate::db::{Db, NewPost, NewProject, NewTeamMember, PhotoPos, Post, Project, TeamMember};
 use crate::error::Result;
 
 pub struct SqliteDb {
@@ -83,6 +83,7 @@ impl SqliteDb {
     /// Schema changes after the initial `CREATE TABLE IF NOT EXISTS` - those are
     /// no-ops on an existing database, so anything added later belongs here.
     async fn migrate(&self) -> Result<()> {
+        self.migrate_team_columns().await?;
         // Logins and password resets look team members up by name, so it has to be unique.
         sqlx::query(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_team_members_name ON team_members(name)",
@@ -101,19 +102,69 @@ impl SqliteDb {
         Ok(())
     }
 
+    /// `team_members` gained `links` (replacing the fixed github/twitter/linkedin columns,
+    /// which stay in place, unused) and the avatar framing columns. SQLite's `ADD COLUMN`
+    /// isn't idempotent, so each column is only added when `PRAGMA table_info` lacks it.
+    async fn migrate_team_columns(&self) -> Result<()> {
+        let existing: Vec<String> = sqlx::query("SELECT name FROM pragma_table_info('team_members')")
+            .fetch_all(&*self.pool)
+            .await?
+            .into_iter()
+            .map(|row| row.get("name"))
+            .collect();
+        let has = |column: &str| existing.iter().any(|name| name == column);
+
+        if !has("links") {
+            sqlx::query("ALTER TABLE team_members ADD COLUMN links TEXT NOT NULL DEFAULT '[]'")
+                .execute(&*self.pool)
+                .await?;
+            // Carry the old fixed socials over (twitter becomes the `x` platform).
+            sqlx::query(
+                "UPDATE team_members SET links = (
+                    SELECT json_group_array(json_object('platform', p, 'url', u)) FROM (
+                        SELECT 'github' AS p, github_url AS u WHERE github_url IS NOT NULL AND trim(github_url) <> ''
+                        UNION ALL
+                        SELECT 'x', twitter_url WHERE twitter_url IS NOT NULL AND trim(twitter_url) <> ''
+                        UNION ALL
+                        SELECT 'linkedin', linkedin_url WHERE linkedin_url IS NOT NULL AND trim(linkedin_url) <> ''
+                    )
+                )",
+            )
+            .execute(&*self.pool)
+            .await?;
+        }
+        if !has("photo_w") {
+            sqlx::query("ALTER TABLE team_members ADD COLUMN photo_w REAL")
+                .execute(&*self.pool)
+                .await?;
+        }
+        if !has("photo_l") {
+            sqlx::query("ALTER TABLE team_members ADD COLUMN photo_l REAL NOT NULL DEFAULT 0")
+                .execute(&*self.pool)
+                .await?;
+        }
+        if !has("photo_t") {
+            sqlx::query("ALTER TABLE team_members ADD COLUMN photo_t REAL NOT NULL DEFAULT 0")
+                .execute(&*self.pool)
+                .await?;
+        }
+        Ok(())
+    }
+
     fn team_member_row_to_member(row: SqliteRow) -> TeamMember {
-        let github_url: Option<String> = row.get("github_url");
-        let twitter_url: Option<String> = row.get("twitter_url");
-        let linkedin_url: Option<String> = row.get("linkedin_url");
         let password_hash: Option<String> = row.get("password_hash");
         let photo_url: Option<String> = row.get("photo_url");
+        let links_str: String = row.get("links");
 
         TeamMember {
-            github_url,
-            twitter_url,
-            linkedin_url,
             password_hash,
             photo_url,
+            photo: PhotoPos {
+                w: row.get("photo_w"),
+                l: row.get("photo_l"),
+                t: row.get("photo_t"),
+            },
+            links: serde_json::from_str(&links_str).unwrap_or_default(),
             id: row.get("id"),
             bio: row.get("bio"),
             name: row.get("name"),
@@ -175,7 +226,11 @@ impl Db for SqliteDb {
                 twitter_url TEXT,
                 linkedin_url TEXT,
                 password_hash TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                links TEXT NOT NULL DEFAULT '[]',
+                photo_w REAL,
+                photo_l REAL NOT NULL DEFAULT 0,
+                photo_t REAL NOT NULL DEFAULT 0
             )",
         )
         .execute(&*self.pool)
@@ -475,18 +530,21 @@ impl Db for SqliteDb {
             None
         };
 
+        let links = serde_json::to_string(&m.links)?;
+
         sqlx::query(
-            "INSERT INTO team_members (id, name, role, bio, photo_url, github_url, twitter_url, linkedin_url, password_hash, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO team_members (id, name, role, bio, photo_url, links, photo_w, photo_l, photo_t, password_hash, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         )
         .bind(&id)
         .bind(&m.name)
         .bind(&m.role)
         .bind(&m.bio)
         .bind(m.photo_url.as_deref())
-        .bind(m.github_url.as_deref())
-        .bind(m.twitter_url.as_deref())
-        .bind(m.linkedin_url.as_deref())
+        .bind(&links)
+        .bind(m.photo.w)
+        .bind(m.photo.l)
+        .bind(m.photo.t)
         .bind(password_hash.as_deref())
         .bind(&now)
         .execute(&*self.pool)
@@ -498,9 +556,8 @@ impl Db for SqliteDb {
             role: m.role,
             bio: m.bio,
             photo_url: m.photo_url,
-            github_url: m.github_url,
-            twitter_url: m.twitter_url,
-            linkedin_url: m.linkedin_url,
+            photo: m.photo,
+            links: m.links,
             password_hash,
             created_at: now,
         })
@@ -508,7 +565,7 @@ impl Db for SqliteDb {
 
     async fn get_team_members(&self) -> Result<Vec<TeamMember>> {
         let rows = sqlx::query(
-            "SELECT id, name, role, bio, photo_url, github_url, twitter_url, linkedin_url, password_hash, created_at FROM team_members ORDER BY created_at DESC",
+            "SELECT id, name, role, bio, photo_url, photo_w, photo_l, photo_t, links, password_hash, created_at FROM team_members ORDER BY created_at DESC",
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -523,13 +580,45 @@ impl Db for SqliteDb {
 
     async fn get_team_member(&self, name: &str) -> Result<Option<TeamMember>> {
         let row = sqlx::query(
-            "SELECT id, name, role, bio, photo_url, github_url, twitter_url, linkedin_url, password_hash, created_at FROM team_members WHERE name = ?1",
+            "SELECT id, name, role, bio, photo_url, photo_w, photo_l, photo_t, links, password_hash, created_at FROM team_members WHERE name = ?1",
         )
         .bind(name)
         .fetch_optional(&*self.pool)
         .await?;
 
         Ok(row.map(Self::team_member_row_to_member))
+    }
+
+    async fn get_team_member_by_id(&self, id: &str) -> Result<Option<TeamMember>> {
+        let row = sqlx::query(
+            "SELECT id, name, role, bio, photo_url, photo_w, photo_l, photo_t, links, password_hash, created_at FROM team_members WHERE id = ?1",
+        )
+        .bind(id)
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        Ok(row.map(Self::team_member_row_to_member))
+    }
+
+    async fn update_team_member(&self, id: &str, m: NewTeamMember) -> Result<()> {
+        let links = serde_json::to_string(&m.links)?;
+
+        sqlx::query(
+            "UPDATE team_members SET name=?2, role=?3, bio=?4, photo_url=?5, links=?6, photo_w=?7, photo_l=?8, photo_t=?9 WHERE id=?1",
+        )
+        .bind(id)
+        .bind(&m.name)
+        .bind(&m.role)
+        .bind(&m.bio)
+        .bind(m.photo_url.as_deref())
+        .bind(&links)
+        .bind(m.photo.w)
+        .bind(m.photo.l)
+        .bind(m.photo.t)
+        .execute(&*self.pool)
+        .await?;
+
+        Ok(())
     }
 
     async fn delete_team_member(&self, id: &str) -> Result<()> {

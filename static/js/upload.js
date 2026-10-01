@@ -55,12 +55,8 @@ function setupUpload(textareaId, statusId, getSlug) {
                 
                 const data = await res.json();
                 if (data.success) {
-                    let url, content;
-                    if (data.existing && data.path) {
-                        url = '/' + data.path;
-                    } else {
-                        url = `/static/media/${ext === 'gif' ? 'gif' : ext === 'webp' ? 'webp' : ext === 'avif' ? 'avif' : isVideo(ext) ? 'video' : 'img'}/${data.slug}-${data.file_count}.${ext}`;
-                    }
+                    const url = data.url;
+                    let content;
                     if (isVideo(ext)) {
                         content = `<video controls loop muted playsinline class="w-full max-w-2xl rounded-lg"><source src="${url}" type="video/mp4"></video>`;
                     } else {

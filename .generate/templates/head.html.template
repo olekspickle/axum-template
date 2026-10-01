@@ -44,6 +44,9 @@
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/custom.css">
+    {% raw %}{% if title=="About" %}{% endraw %}
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% raw %}{% endif %}{% endraw %}
     {% raw %}{% if title=="[404]" %}{% endraw %}
     <link rel="stylesheet" href="/static/css/glitch.css">
     {% raw %}{% endif %}{% endraw %}

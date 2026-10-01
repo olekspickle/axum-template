@@ -48,6 +48,9 @@ pub trait Db: Send + Sync {
     async fn create_team_member(&self, member: NewTeamMember) -> Result<TeamMember>;
     async fn get_team_members(&self) -> Result<Vec<TeamMember>>;
     async fn get_team_member(&self, name: &str) -> Result<Option<TeamMember>>;
+    async fn get_team_member_by_id(&self, id: &str) -> Result<Option<TeamMember>>;
+    /// Leaves the password hash alone: passwords change through the reset flow.
+    async fn update_team_member(&self, id: &str, member: NewTeamMember) -> Result<()>;
     async fn delete_team_member(&self, id: &str) -> Result<()>;
     async fn update_team_member_password(&self, username: &str, password_hash: &str) -> Result<()>;
 

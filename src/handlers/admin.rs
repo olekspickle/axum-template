@@ -10,7 +10,7 @@ use axum::{
     http::{StatusCode, header::HeaderName},
     middleware::from_fn_with_state,
     response::{Html, IntoResponse, Redirect, Response},
-    routing::{delete, get, post},
+    routing::{get, post},
 };
 
 use serde::Deserialize;
@@ -18,7 +18,10 @@ use sha2::{Digest, Sha256};
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    db::{NewPost, NewProject, NewTeamMember, Post, Project, TeamMember},
+    db::{
+        NewPost, NewProject, NewTeamMember, PLATFORMS, PhotoPos, Post, Project, TeamMember,
+        parse_links,
+    },
     middleware::{self, Role},
     state::AppState,
 };
@@ -53,7 +56,12 @@ pub fn router(state: AppState) -> Router<AppState> {
         .route("/team", get(admin_team_list))
         .route("/team", post(admin_create_team_member))
         .route("/team/search", get(admin_search_team))
-        .route("/team/{id}", delete(admin_delete_team_member))
+        .route(
+            "/team/{id}",
+            get(admin_edit_team_member)
+                .post(admin_update_team_member)
+                .delete(admin_delete_team_member),
+        )
         .route("/logout", post(admin_logout))
         .route("/preview", post(admin_preview))
         // Only this route opts out of the global body limit.
@@ -446,21 +454,92 @@ pub async fn admin_team_list(State(state): State<AppState>) -> impl IntoResponse
     let template = admin_templates::AdminTeamList {
         title: "Manage Team".to_string(),
         members,
+        platforms: &PLATFORMS,
     };
     HtmlTemplate(template)
 }
 
+#[derive(Deserialize)]
+pub struct TeamForm {
+    name: String,
+    role: String,
+    bio: String,
+    photo_url: Option<String>,
+    #[serde(default)]
+    photo_w: String,
+    #[serde(default)]
+    photo_l: String,
+    #[serde(default)]
+    photo_t: String,
+    #[serde(default)]
+    links: String,
+    password: Option<String>,
+}
+
+impl TeamForm {
+    fn into_new_member(self) -> NewTeamMember {
+        NewTeamMember {
+            name: self.name,
+            role: self.role,
+            bio: self.bio,
+            // Empty stays `Some("")`, not `None`: databases created before the column became
+            // nullable declare `photo_url NOT NULL`. Templates treat blank as "no photo".
+            photo_url: self.photo_url.map(|url| url.trim().to_string()),
+            photo: PhotoPos::from_form(&self.photo_w, &self.photo_l, &self.photo_t),
+            links: parse_links(&self.links),
+            password: self.password.filter(|p| !p.is_empty()),
+        }
+    }
+}
+
 pub async fn admin_create_team_member(
     State(state): State<AppState>,
-    Form(form): Form<NewTeamMember>,
+    Form(form): Form<TeamForm>,
 ) -> impl IntoResponse {
-    match state.db.create_team_member(form).await {
+    match state.db.create_team_member(form.into_new_member()).await {
         Ok(_) => Redirect::to("/admin/team").into_response(),
         Err(e) => {
             tracing::error!(error = %e, "failed to create team member");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to create team member",
+            )
+                .into_response()
+        }
+    }
+}
+
+pub async fn admin_edit_team_member(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.db.get_team_member_by_id(&id).await {
+        Ok(Some(member)) => HtmlTemplate(admin_templates::AdminTeamEdit {
+            title: "Edit Team Member".to_string(),
+            member,
+            platforms: &PLATFORMS,
+        })
+        .into_response(),
+        _ => Redirect::to("/admin/team").into_response(),
+    }
+}
+
+pub async fn admin_update_team_member(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Form(form): Form<TeamForm>,
+) -> Response {
+    match state
+        .db
+        .update_team_member(&id, form.into_new_member())
+        .await
+    {
+        Ok(()) => Redirect::to("/admin/team").into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to update team member");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to update team member (is the name already taken?)",
             )
                 .into_response()
         }
@@ -542,6 +621,7 @@ pub async fn upload_media(
     let mut slug = String::new();
     let mut file_count: u32 = 0;
     let mut upload_count: u32 = 0;
+    let mut uploaded_url: Option<String> = None;
 
     loop {
         let field = match multipart.next_field().await {
@@ -650,6 +730,7 @@ pub async fn upload_media(
                         "success": true,
                         "existing": true,
                         "path": existing_path,
+                        "url": media_url(&existing_path),
                         "slug": slug
                     })),
                 );
@@ -657,6 +738,7 @@ pub async fn upload_media(
 
             tracing::info!(path = %final_path.display(), hash = %hash, "uploaded media");
             upload_count += 1;
+            uploaded_url = Some(media_url(&final_path.display().to_string()));
             media_index_insert(&state, hash, final_path.display().to_string()).await;
         }
     }
@@ -664,9 +746,15 @@ pub async fn upload_media(
     (
         StatusCode::OK,
         axum::Json(
-            serde_json::json!({ "success": true, "count": upload_count, "file_count": file_count, "slug": slug }),
+            serde_json::json!({ "success": true, "count": upload_count, "file_count": file_count, "slug": slug, "url": uploaded_url }),
         ),
     )
+}
+
+/// Site-absolute URL (`/static/media/...`) for a stored file path, so clients never
+/// have to guess it.
+fn media_url(path: &str) -> String {
+    format!("/{}", path.replace('\\', "/").trim_start_matches('/'))
 }
 
 fn format_dir(ext: &str) -> &'static str {
@@ -922,6 +1010,15 @@ pub mod admin_templates {
     pub struct AdminTeamList {
         pub title: String,
         pub members: Vec<TeamMember>,
+        pub platforms: &'static [(&'static str, &'static str, &'static str)],
+    }
+
+    #[derive(Template)]
+    #[template(path = "admin/team-edit.html")]
+    pub struct AdminTeamEdit {
+        pub title: String,
+        pub member: TeamMember,
+        pub platforms: &'static [(&'static str, &'static str, &'static str)],
     }
 
     #[derive(Template)]

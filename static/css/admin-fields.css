@@ -1,0 +1,31 @@
+/* Admin form widgets (see static/js/admin-fields.js). Plain CSS: not part of the Tailwind build. */
+.img-field-row, .link-row { display: flex; align-items: center; gap: 0.5rem; }
+.img-field-row > input[type="text"], .link-row > input { flex: 1; min-width: 0; }
+.img-field-preview { width: 2.75rem; height: 2.75rem; object-fit: cover; border-radius: 0.5rem; border: 1px solid #d1d5db; flex: none; }
+.img-field-btn, .img-list-add, .links-add {
+    padding: 0.4rem 0.9rem; border: 1px solid #d1d5db; border-radius: 0.5rem;
+    background: #fff; color: #374151; font-size: 0.875rem; cursor: pointer; flex: none;
+}
+.img-field-btn:hover, .img-list-add:hover, .links-add:hover { background: #f3f4f6; }
+.img-field-btn:disabled { opacity: 0.6; cursor: wait; }
+.img-field-status { min-height: 1.1rem; margin-top: 0.25rem; font-size: 0.8rem; color: #6b7280; }
+.img-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+.img-list-item { display: flex; align-items: flex-start; gap: 0.5rem; }
+.img-list-item .img-field { flex: 1; min-width: 0; }
+.img-list-remove, .link-remove {
+    flex: none; width: 2rem; height: 2rem; border: 0; border-radius: 0.5rem;
+    background: transparent; color: #9ca3af; font-size: 1.25rem; line-height: 1; cursor: pointer;
+}
+.img-list-remove:hover, .link-remove:hover { background: #fee2e2; color: #dc2626; }
+.links-rows { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+.link-row select, .link-row input {
+    padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; background: #fff;
+}
+
+.avatar-editor { display: flex; align-items: center; gap: 1rem; }
+.avatar-editor[hidden] { display: none; }
+.avatar-stage { width: 9rem; height: 9rem; cursor: grab; touch-action: none; user-select: none; border: 1px solid #d1d5db; }
+.avatar-stage.dragging { cursor: grabbing; }
+.avatar-stage img { pointer-events: none; }
+.avatar-controls label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #374151; }
+.avatar-hint { margin-top: 0.4rem; font-size: 0.8rem; color: #6b7280; }
