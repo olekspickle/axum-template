@@ -683,7 +683,9 @@ fn form_body(fields: &[(&str, &str)]) -> String {
 #[tokio::test]
 async fn test_team_member_links_framing_and_edit_round_trip() {
     let (mut app, state) = setup_test_app().await;
-    let token = login(&mut app, "admin", "admin").await.expect("admin login");
+    let token = login(&mut app, "admin", "admin")
+        .await
+        .expect("admin login");
     let cookie = format!("token={token}");
     let form = ("Content-Type", "application/x-www-form-urlencoded");
 
@@ -708,9 +710,18 @@ async fn test_team_member_links_framing_and_edit_round_trip() {
         ])),
     )
     .await;
-    assert_eq!(status, StatusCode::SEE_OTHER, "create redirects to the list");
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "create redirects to the list"
+    );
 
-    let jane = state.db.get_team_member("Jane").await.unwrap().expect("created");
+    let jane = state
+        .db
+        .get_team_member("Jane")
+        .await
+        .unwrap()
+        .expect("created");
     assert_eq!(jane.links.len(), 1, "the javascript: link must be dropped");
     assert_eq!(jane.links[0].platform, "github");
     assert_eq!(
@@ -724,7 +735,10 @@ async fn test_team_member_links_framing_and_edit_round_trip() {
 
     let (status, body, _) = make_request(&mut app, "GET", "/about", vec![], None).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("fa-brands fa-github"), "icon rendered from links");
+    assert!(
+        body.contains("fa-brands fa-github"),
+        "icon rendered from links"
+    );
     assert!(body.contains("width:240.00%"), "framing rendered inline");
     assert!(!body.contains("javascript:"));
 
@@ -760,11 +774,24 @@ async fn test_team_member_links_framing_and_edit_round_trip() {
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    let pw = state.db.get_team_member_by_id(&pw.id).await.unwrap().expect("pw");
+    let pw = state
+        .db
+        .get_team_member_by_id(&pw.id)
+        .await
+        .unwrap()
+        .expect("pw");
     assert_eq!(pw.role, "Lead");
     assert_eq!(pw.links[0].url, "mailto:pw@example.com");
-    assert_eq!(pw.photo, db::PhotoPos::default(), "junk framing falls back to default");
-    assert_eq!(pw.password_hash, Some(hash), "edit must not touch the password");
+    assert_eq!(
+        pw.photo,
+        db::PhotoPos::default(),
+        "junk framing falls back to default"
+    );
+    assert_eq!(
+        pw.password_hash,
+        Some(hash),
+        "edit must not touch the password"
+    );
 
     let (status, _, headers) = make_request(
         &mut app,
@@ -826,7 +853,11 @@ async fn test_legacy_team_columns_are_migrated() {
     db.init().await.expect("init is idempotent");
 
     let legacy = db.get_team_member("legacy").await.unwrap().expect("legacy");
-    let links: Vec<_> = legacy.links.iter().map(|l| (l.platform.as_str(), l.url.as_str())).collect();
+    let links: Vec<_> = legacy
+        .links
+        .iter()
+        .map(|l| (l.platform.as_str(), l.url.as_str()))
+        .collect();
     assert_eq!(
         links,
         vec![

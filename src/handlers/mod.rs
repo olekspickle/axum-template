@@ -295,7 +295,10 @@ where
             Ok(html) => Html(html).into_response(),
             Err(err) => {
                 tracing::error!(error = %err, "failed to render template");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to render template")
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to render template",
+                )
                     .into_response()
             }
         }

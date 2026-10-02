@@ -392,7 +392,8 @@ pub async fn rate_limit(
     State(state): State<AppState>,
     req: Request,
     next: axum::middleware::Next,
-) -> impl IntoResponse {    // Only POSTs count as attempts — viewing the login page is not one.
+) -> impl IntoResponse {
+    // Only POSTs count as attempts — viewing the login page is not one.
     if req.method() == axum::http::Method::POST && RATE_LIMITED_PATHS.contains(&req.uri().path()) {
         let key = client_key(&state, &req);
 
@@ -426,8 +427,7 @@ pub async fn rate_limit(
 /// cross-site POSTs, which is exactly what this rejects.
 pub async fn csrf_protection(req: Request, next: Next) -> Response<Body> {
     use axum::http::Method;
-    const STATE_CHANGING: [Method; 4] =
-        [Method::POST, Method::PUT, Method::DELETE, Method::PATCH];
+    const STATE_CHANGING: [Method; 4] = [Method::POST, Method::PUT, Method::DELETE, Method::PATCH];
 
     if STATE_CHANGING.contains(req.method()) {
         let origin = req

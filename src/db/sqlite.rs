@@ -106,12 +106,13 @@ impl SqliteDb {
     /// which stay in place, unused) and the avatar framing columns. SQLite's `ADD COLUMN`
     /// isn't idempotent, so each column is only added when `PRAGMA table_info` lacks it.
     async fn migrate_team_columns(&self) -> Result<()> {
-        let existing: Vec<String> = sqlx::query("SELECT name FROM pragma_table_info('team_members')")
-            .fetch_all(&*self.pool)
-            .await?
-            .into_iter()
-            .map(|row| row.get("name"))
-            .collect();
+        let existing: Vec<String> =
+            sqlx::query("SELECT name FROM pragma_table_info('team_members')")
+                .fetch_all(&*self.pool)
+                .await?
+                .into_iter()
+                .map(|row| row.get("name"))
+                .collect();
         let has = |column: &str| existing.iter().any(|name| name == column);
 
         if !has("links") {

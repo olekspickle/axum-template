@@ -5,9 +5,7 @@
 #![cfg(feature = "surreal")]
 
 use axum_template::config::Config;
-use axum_template::db::{
-    Db, NewPost, NewProject, NewTeamMember, PhotoPos, SocialLink, create_db,
-};
+use axum_template::db::{Db, NewPost, NewProject, NewTeamMember, PhotoPos, SocialLink, create_db};
 
 async fn connect() -> Option<Box<dyn Db>> {
     // Config::load requires ADMIN_PASSWORD; set a throwaway one for the test run.
@@ -277,7 +275,11 @@ async fn team_member_links_framing_and_edit() {
     assert_eq!(updated.role, "Lead");
     assert!(updated.links.is_empty(), "update replaces links");
     assert_eq!(updated.photo, PhotoPos::default());
-    assert_eq!(updated.password_hash, Some(hash), "update keeps the password");
+    assert_eq!(
+        updated.password_hash,
+        Some(hash),
+        "update keeps the password"
+    );
 
     assert!(
         db.update_team_member("missing", NewTeamMember::default())

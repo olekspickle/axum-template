@@ -183,8 +183,7 @@ impl SocialLink {
     }
 
     pub fn icon_class(&self) -> &'static str {
-        self.entry()
-            .map_or("fa-solid fa-link", |(.., icon)| icon)
+        self.entry().map_or("fa-solid fa-link", |(.., icon)| icon)
     }
 
     /// Only http(s) and mailto survive: these URLs land in `href`, so `javascript:`
@@ -264,7 +263,14 @@ mod tests {
         assert_eq!(PhotoPos::from_form("NaN", "1", "1"), PhotoPos::default());
         assert_eq!(PhotoPos::from_form("50", "0", "0"), PhotoPos::default());
         let p = PhotoPos::from_form("250.5", "-40", "9999");
-        assert_eq!(p, PhotoPos { w: Some(250.5), l: -40.0, t: 0.0 });
+        assert_eq!(
+            p,
+            PhotoPos {
+                w: Some(250.5),
+                l: -40.0,
+                t: 0.0
+            }
+        );
         assert_eq!(
             p.style(),
             "position:absolute;max-width:none;height:auto;width:250.50%;left:-40.00%;top:0.00%"
